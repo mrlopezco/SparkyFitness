@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-07-08_
+_Last updated: 2026-08-20_
 
 SparkyFitness Frontend is the React web app for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessFrontend/`.
 
@@ -43,8 +43,9 @@ pnpm run build
 Features are organized by domain, and the same domain folder name appears in `src/pages/`, `src/api/`, and `src/hooks/`. A feature change usually touches the matching folder in all three:
 
 - Page domains: `Admin`, `Auth`, `Chat`, `CheckIn`, `Cycle`, `Diary`, `Errors`, `Exercises`, `Fasting`, `Foods`, `Goals`, `Integrations`, `Medications`, `Reports`, `Settings`.
-- API domains add a few more: `AiConversions`, `Chatbot`, `Onboarding`, `Pregnancy`, `SleepScience`.
+- API domains add a few more: `AiConversions`, `AiMealLog`, `Chatbot`, `Onboarding`, `Pregnancy`, `SleepScience`.
 - Example: a Medications bug lives in `src/pages/Medications/` + `src/api/Medications/` + `src/hooks/` medication hooks. Start there, not with a repo-wide search.
+- AI purple accent helpers: `src/components/ai/aiAccent.ts`. Custom-food NL draft dialog: `src/components/FoodSearch/AiFoodDraftDialog.tsx`.
 
 ## Source Map
 

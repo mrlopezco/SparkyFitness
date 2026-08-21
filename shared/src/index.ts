@@ -1,3 +1,4 @@
+export * from "./schemas/api/AiMealLog.api.zod.ts";
 export * from "./schemas/api/AiServiceSettings.api.zod.ts";
 export * from "./schemas/api/Backup.api.zod.ts";
 export * from "./schemas/api/CustomCategories.api.zod.ts";

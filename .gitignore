@@ -19,6 +19,8 @@ dist
 dist-ssr
 *.local
 .env
+.env.coolify
+.env.*.local
 
 # Private folder contents
 private/

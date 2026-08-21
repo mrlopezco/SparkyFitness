@@ -7,17 +7,12 @@ import foodEntryService from '../../services/foodEntryService.js';
 import mealService from '../../services/mealService.js';
 import preferenceService from '../../services/preferenceService.js';
 import measurementService from '../../services/measurementService.js';
-import {
-  searchProviderFoods,
-  type ProviderType,
-} from '../../services/externalFoodSearchService.js';
-import { VALID_PROVIDER_TYPES } from '../../constants/foodProviders.js';
 import foodRepository from '../../models/foodRepository.js';
 import foodEntryMealRepository from '../../models/foodEntryMealRepository.js';
 import mealTypeRepository from '../../models/mealType.js';
 import measurementRepository from '../../models/measurementRepository.js';
 import reportRepository from '../../models/reportRepository.js';
-import externalProviderRepository from '../../models/externalProviderRepository.js';
+import { lookupFoodNutrition } from '../../services/foodNutritionLookupService.js';
 import { ERRORS, formatZodError } from './errors.js';
 import {
   compactRecord,
@@ -65,10 +60,6 @@ const VALID_ACTIONS = [
   'get_water_history',
 ];
 
-// Provider types the no-provider cascade may search (exercise/health
-// providers are excluded). Derived from VALID_PROVIDER_TYPES.
-const FOOD_PROVIDER_TYPES = [...VALID_PROVIDER_TYPES];
-
 // Units where an omitted create_food quantity defaults to 1 instead of 100.
 const COUNT_BASED_UNITS = [
   'serving',
@@ -115,32 +106,6 @@ function pickBestVariant(food: any) {
   const pool = variants.filter(isPlausible);
   const chosen = pool.length > 0 ? pool : variants;
   return chosen.find((v) => v.is_default) ?? chosen[0];
-}
-
-// Re-ranks external provider matches so generic/whole foods win over branded
-// products. Providers return branded items ("EGG (SNICKERS)", "BANANA
-// (BETTER'N PEANUT BUTTER)") ahead of the plain whole food a user almost
-// always means, and small models just take the first result. Stable within
-// each tier so the provider's own relevance order is otherwise preserved.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function rankProviderMatches(foods: any[], query: string): any[] {
-  const q = query.trim().toLowerCase();
-  const qStem = q.replace(/s$/, '');
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const score = (f: any): number => {
-    const name = String(f?.name ?? '').toLowerCase();
-    const branded = Boolean(f?.brand && String(f.brand).trim());
-    const firstSegment = name.split(',')[0].trim();
-    let s = branded ? 0 : 100; // whole foods first
-    if (firstSegment === q || firstSegment === qStem) s += 20;
-    else if (firstSegment.startsWith(qStem)) s += 10;
-    else if (name.includes(q)) s += 5;
-    return s;
-  };
-  return foods
-    .map((f, i) => ({ f, i, s: score(f) }))
-    .sort((a, b) => b.s - a.s || a.i - b.i)
-    .map((x) => x.f);
 }
 
 // Provider nutrition values arrive as strings or numbers; absent/blank/NaN
@@ -721,132 +686,6 @@ export async function getWaterHistoryRows(
       unit: waterUnit,
     };
   });
-}
-
-/**
- * Cascade lookup for food nutrition: internal DB, then the user's active
- * configured external providers (sort_order first), then free OpenFoodFacts.
- * `source: 'ai_estimate'` with a null food signals the AI-estimation fallback.
- */
-async function lookupFoodNutrition(
-  userId: string,
-  foodName: string,
-  providerType?: string
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-): Promise<{ source: string; food: any | null; alternatives?: any[] }> {
-  // Internal DB search (unless another provider was explicitly requested)
-  if (!providerType || providerType === 'internal') {
-    const internalExact = await searchFoodInternal(userId, foodName, 'exact');
-    if (internalExact.data.length > 0) {
-      return {
-        source: 'internal',
-        food: internalExact.data[0],
-        alternatives: internalExact.data.slice(1),
-      };
-    }
-    const internalBroad = await searchFoodInternal(userId, foodName, 'broad');
-    if (internalBroad.data.length > 0) {
-      return {
-        source: 'internal',
-        food: internalBroad.data[0],
-        alternatives: internalBroad.data.slice(1),
-      };
-    }
-    // "internal" explicitly requested and not found: stop here
-    if (providerType === 'internal') {
-      return { source: 'internal', food: null };
-    }
-  }
-
-  let targetProviders: {
-    id?: string;
-    provider_type: string;
-    provider_name: string;
-  }[] = [];
-
-  if (providerType) {
-    if (providerType === 'openfoodfacts') {
-      targetProviders.push({
-        provider_type: 'openfoodfacts',
-        provider_name: 'OpenFoodFacts',
-      });
-    } else {
-      const rows = await externalProviderRepository.getActiveProvidersByTypes(
-        userId,
-        [providerType]
-      );
-      if (rows.length > 0) {
-        targetProviders.push(rows[0]);
-      } else {
-        // Explicitly requested but unconfigured: the per-provider search
-        // below fails (no credentials) and the cascade falls through to the
-        // AI-estimate response — MCP behavior, pinned by test.
-        targetProviders.push({
-          provider_type: providerType,
-          provider_name: providerType,
-        });
-      }
-    }
-  } else {
-    targetProviders =
-      await externalProviderRepository.getActiveProvidersByTypes(
-        userId,
-        FOOD_PROVIDER_TYPES
-      );
-    if (!targetProviders.some((p) => p.provider_type === 'openfoodfacts')) {
-      targetProviders.push({
-        provider_type: 'openfoodfacts',
-        provider_name: 'OpenFoodFacts',
-      });
-    }
-    // Honour the user's chosen default food provider. Without this the cascade
-    // order comes from sort_order, which is NULL for most installs and falls
-    // back to created_at DESC — so the most recently added provider silently
-    // won every lookup and the setting the user picked in the UI did nothing.
-    const defaultProviderId = (
-      await preferenceService.getUserPreferences(userId, userId)
-    )?.default_food_data_provider_id;
-    if (defaultProviderId) {
-      const defaultIndex = targetProviders.findIndex(
-        (p) => p.id === defaultProviderId
-      );
-      if (defaultIndex > 0) {
-        const [preferred] = targetProviders.splice(defaultIndex, 1);
-        targetProviders.unshift(preferred);
-      }
-    }
-  }
-
-  for (const provider of targetProviders) {
-    try {
-      log(
-        'debug',
-        `[Food Tool] Lookup cascade querying provider: ${provider.provider_name} (${provider.provider_type})`
-      );
-      const result = await searchProviderFoods(
-        userId,
-        provider.provider_type as ProviderType,
-        foodName,
-        { providerId: provider.id }
-      );
-      if (result.foods.length > 0) {
-        const ranked = rankProviderMatches(result.foods, foodName);
-        return {
-          source: provider.provider_type,
-          food: ranked[0],
-          alternatives: ranked.slice(1),
-        };
-      }
-    } catch (error) {
-      log(
-        'warn',
-        `[Food Tool] Lookup cascade provider ${provider.provider_name} failed:`,
-        error
-      );
-    }
-  }
-
-  return { source: 'ai_estimate', food: null };
 }
 
 // Standalone domain tools.

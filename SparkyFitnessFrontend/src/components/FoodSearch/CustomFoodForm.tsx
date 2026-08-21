@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-import { Plus, Camera } from 'lucide-react';
+import { Plus, Camera, Sparkles } from 'lucide-react';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import ConfirmationDialog from '@/components/ui/ConfirmationDialog';
@@ -14,6 +14,9 @@ import { BarcodeScannerDialog } from './BarcodeScannerDialog';
 import { ProviderNutrientViewer } from './ProviderNutrientViewer';
 import ProviderVerifiedBadge from './ProviderVerifiedBadge';
 import type { Food, FoodVariant } from '@/types/food';
+import AiFoodDraftDialog from './AiFoodDraftDialog';
+import { AI_BUTTON_CLASS } from '@/components/ai/aiAccent';
+import { toast } from '@/hooks/use-toast';
 
 import { useCustomNutrients } from '@/hooks/Foods/useCustomNutrients';
 import { VariantCard } from './VariantCard';
@@ -79,6 +82,7 @@ const CustomFoodForm = ({
     updateVariant,
     applyProviderNutrientMatch,
     applyAiEstimate,
+    applyAiFoodDraft,
     handleSubmit,
     handleSyncConfirmation,
     showBarcodeConflictConfirmation,
@@ -95,6 +99,7 @@ const CustomFoodForm = ({
   });
 
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
+  const [showAiFoodDraft, setShowAiFoodDraft] = useState(false);
 
   // The food's default variant is the AI estimation source. Lookup by flag
   // rather than by position — submit-time validation guarantees exactly one.
@@ -170,11 +175,26 @@ const CustomFoodForm = ({
     <>
       <Card>
         <CardHeader>
-          <div className="flex flex-wrap items-center gap-2">
-            <CardTitle>
-              {food && food.id ? 'Edit Food' : 'Add Custom Food'}
-            </CardTitle>
-            {food?.provider_verified ? <ProviderVerifiedBadge /> : null}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <CardTitle>
+                {food && food.id ? 'Edit Food' : 'Add Custom Food'}
+              </CardTitle>
+              {food?.provider_verified ? <ProviderVerifiedBadge /> : null}
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              className={AI_BUTTON_CLASS}
+              onClick={() => setShowAiFoodDraft(true)}
+              title={t(
+                'aiFoodDraft.openButtonTitle',
+                'Describe this food with AI'
+              )}
+            >
+              <Sparkles className="w-4 h-4 mr-1.5" />
+              {t('aiFoodDraft.openButton', 'Describe with AI')}
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -436,6 +456,23 @@ const CustomFoodForm = ({
           hideManualInput
         />
       )}
+
+      <AiFoodDraftDialog
+        isOpen={showAiFoodDraft}
+        onClose={() => setShowAiFoodDraft(false)}
+        onApply={(draft) => {
+          applyAiFoodDraft(draft);
+          toast({
+            title: t('aiFoodDraft.appliedTitle', 'Form filled'),
+            description:
+              draft.warning ??
+              t(
+                'aiFoodDraft.appliedDescription',
+                'Review the name, serving, and nutrients before saving.'
+              ),
+          });
+        }}
+      />
     </>
   );
 };

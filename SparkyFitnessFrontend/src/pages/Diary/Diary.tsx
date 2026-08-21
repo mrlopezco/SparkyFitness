@@ -426,6 +426,7 @@ const Diary = () => {
               ),
               selectedDate: selectedDate,
             }}
+            mealTypeId={mealTypeObj.id}
             totals={getMealTotals(
               mealTypeObj.name,
               foodEntries,
