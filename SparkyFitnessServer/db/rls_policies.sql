@@ -102,6 +102,7 @@ BEGIN
     'health_appointments',
     'user_custom_moods',
     'user_mood_display_preferences',
+    'user_module_preferences',
     'passkey_registration_tickets',
     'exercise_entry_laps',
     'exercise_entry_gps_points',
@@ -640,6 +641,9 @@ SELECT create_library_policy('workout_presets', 'is_public', ARRAY['can_view_exe
 -- These tables are managed by create_medication_policy at the bottom of this file (Tier 3).
 -- Do NOT apply create_library_policy or create_diary_policy to medication tables.
 SELECT create_owner_policy('user_medication_display_preferences');
+
+-- Fork: module visibility toggles (nav/route gating). Tier 1 — owner-only.
+SELECT create_owner_policy('user_module_preferences');
 
 -- Cycle & Pregnancy hub (see migration 20260702180000_add_cycle_tracking_schema.sql).
 -- Tier 1 — owner-only. Deliberately stricter than medications: this reproductive

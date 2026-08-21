@@ -39,6 +39,7 @@ import { AccountSecurity } from './AccountSecurity';
 import { ApiSettings } from './ApiSettings';
 import { WaterTrackingSettings } from './WaterTrackingSettings';
 import CycleSettings from './CycleSettings';
+import ModuleVisibilitySettings from './ModuleVisibilitySettings';
 import { PreferenceSettings } from './PreferenceSettings';
 import { ProfileInformation } from './ProfileInformation';
 import { DataManagementSettings } from './DataManagementSettings';
@@ -54,6 +55,7 @@ const SECTION_TO_TAB_MAP: Record<string, string> = {
   'user-preferences': 'profile-account',
   'account-security': 'profile-account',
   'family-access': 'profile-account',
+  'module-visibility': 'profile-account',
   'data-management': 'profile-account',
   'allergen-preferences': 'nutrition-diet',
   'custom-nutrients': 'nutrition-diet',
@@ -171,6 +173,12 @@ const Settings = () => {
               className="border rounded-lg mb-4"
             >
               <PreferenceSettings />
+            </AccordionItem>
+            <AccordionItem
+              value="module-visibility"
+              className="border rounded-lg mb-4"
+            >
+              <ModuleVisibilitySettings />
             </AccordionItem>
             <AccordionItem
               value="family-access"

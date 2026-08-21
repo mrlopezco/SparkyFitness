@@ -42,8 +42,32 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useMealTypes } from '@/hooks/Diary/useMealTypes';
 import { useCurrentVersionQuery } from '@/hooks/useGeneralQueries';
 import { useCycleSettings } from '@/hooks/useCycle';
+import { useEffectiveModules } from '@/hooks/Settings/useModulePreferences';
+import {
+  FORK_MODULE_DEFINITIONS,
+  isPathAllowedByModules,
+} from '@/config/forkModules';
 import { cn } from '@/lib/utils';
 import { getGridClassNormal } from '@/utils/layout';
+
+function isNavItemAllowedByModules(
+  value: string,
+  modules: Record<string, boolean>
+): boolean {
+  const path = value.startsWith('/') ? value : `/${value}`;
+  for (const def of FORK_MODULE_DEFINITIONS) {
+    if (
+      def.addCompValues.includes(value) ||
+      def.routePrefixes.includes(path) ||
+      def.routePrefixes.some(
+        (prefix) => path === prefix || path.startsWith(`${prefix}/`)
+      )
+    ) {
+      return modules[def.id] !== false;
+    }
+  }
+  return true;
+}
 
 interface AddCompItem {
   value: string;
@@ -85,6 +109,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 
   // Fetch cycle settings to determine tab visibility
   const { data: cycleSettings } = useCycleSettings();
+  const modules = useEffectiveModules();
 
   const handleSignOut = async () => {
     info(loggingLevel, 'MainLayout: Attempting to sign out.');
@@ -155,8 +180,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         });
       }
     }
-    return items;
-  }, [isActingOnBehalf, hasWritePermission, cycleSettings, t]);
+    return items.filter((item) => isNavItemAllowedByModules(item.value, modules));
+  }, [isActingOnBehalf, hasWritePermission, cycleSettings, t, modules]);
 
   // Map meal type names to icons
   const getMealTypeIcon = useCallback((name: string): LucideIcon => {
@@ -277,7 +302,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     if (user?.role === 'admin' && !isActingOnBehalf) {
       tabs.push({ value: '/admin', label: t('nav.admin'), icon: Shield });
     }
-    return tabs;
+    return tabs.filter((tab) => isNavItemAllowedByModules(tab.value, modules));
   }, [
     isActingOnBehalf,
     hasPermission,
@@ -286,6 +311,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     user?.role,
     t,
     cycleSettings,
+    modules,
   ]);
 
   const availableMobileTabs = useMemo(() => {
@@ -339,7 +365,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     if (user?.role === 'admin' && !isActingOnBehalf) {
       mobileTabs.push({ value: '/admin', label: t('nav.admin'), icon: Shield });
     }
-    return mobileTabs;
+    return mobileTabs.filter((tab) =>
+      isNavItemAllowedByModules(tab.value, modules)
+    );
   }, [
     isActingOnBehalf,
     hasPermission,
@@ -348,6 +376,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     user?.role,
     isAddCompOpen,
     t,
+    modules,
   ]);
 
   const handleNavigateFromAddComp = useCallback(
@@ -389,7 +418,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   // on behalf, a delegate only has a subset of tabs; landing on a disallowed
   // route (e.g. staying on Diary after switching to a checkin-only profile)
   // would otherwise mount that page and fire requests that 403.
+  // Also redirect when a fork module is disabled for the owner.
   const isCurrentPathAllowed = useMemo(() => {
+    if (!isPathAllowedByModules(location.pathname, modules)) {
+      return false;
+    }
     if (!isActingOnBehalf || availableTabs.length === 0) {
       return true;
     }
@@ -407,18 +440,19 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         currentPath === tab.value || currentPath.startsWith(tab.value + '/')
       );
     });
-  }, [isActingOnBehalf, availableTabs, location.pathname]);
+  }, [isActingOnBehalf, availableTabs, location.pathname, modules]);
 
   useEffect(() => {
     if (!isCurrentPathAllowed) {
-      const fallbackTab = availableTabs[0]?.value;
-      if (fallbackTab) {
-        debug(
-          loggingLevel,
-          `MainLayout: Redirecting from unauthorized path ${location.pathname} to ${fallbackTab}`
-        );
-        navigate(fallbackTab, { replace: true });
-      }
+      const fallbackTab =
+        availableTabs.find((tab) =>
+          isNavItemAllowedByModules(tab.value, modules)
+        )?.value ?? '/';
+      debug(
+        loggingLevel,
+        `MainLayout: Redirecting from unauthorized path ${location.pathname} to ${fallbackTab}`
+      );
+      navigate(fallbackTab, { replace: true });
     }
   }, [
     isCurrentPathAllowed,
@@ -426,6 +460,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     location.pathname,
     navigate,
     loggingLevel,
+    modules,
   ]);
 
   const selectedDate = new URLSearchParams(location.search).get('date');

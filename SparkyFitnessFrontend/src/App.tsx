@@ -21,6 +21,7 @@ import AnnouncementDialog, {
   AnnouncementInfo,
 } from '@/components/AnnouncementDialog';
 import AppSetup from '@/components/AppSetup';
+import { ModuleRoute } from '@/components/ModuleRoute';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import {
@@ -388,12 +389,20 @@ const router = createBrowserRouter([
           },
           {
             path: 'exercises',
-            Component: ExerciseDatabaseManager,
+            element: (
+              <ModuleRoute moduleId="exercises">
+                <ExerciseDatabaseManager />
+              </ModuleRoute>
+            ),
             ErrorBoundary: RouteErrorBoundary,
           },
           {
             path: 'workout-playback',
-            Component: WorkoutPlaybackPage,
+            element: (
+              <ModuleRoute moduleId="exercises">
+                <WorkoutPlaybackPage />
+              </ModuleRoute>
+            ),
             ErrorBoundary: RouteErrorBoundary,
           },
           {
@@ -403,7 +412,11 @@ const router = createBrowserRouter([
           },
           {
             path: 'medications',
-            Component: Medications,
+            element: (
+              <ModuleRoute moduleId="medications">
+                <Medications />
+              </ModuleRoute>
+            ),
             ErrorBoundary: RouteErrorBoundary,
           },
           {

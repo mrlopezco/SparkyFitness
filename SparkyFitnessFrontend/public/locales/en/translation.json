@@ -1397,6 +1397,19 @@
       "title": "Family Access",
       "description": "Manage access to your data for family members"
     },
+    "moduleVisibility": {
+      "title": "Module Visibility",
+      "description": "Show or hide major app modules in navigation and routes.",
+      "note": "Disabled modules are hidden from the menu and blocked if opened directly. Diary widgets and APIs are unchanged.",
+      "modules": {
+        "exercises": "Exercises",
+        "exercisesHelp": "Exercise library and related navigation.",
+        "medications": "Medications",
+        "medicationsHelp": "Medications library and related navigation.",
+        "trainingPlan": "Training Plan",
+        "trainingPlanHelp": "Reserved for a future training-plan feature. Enabling does nothing yet."
+      }
+    },
     "customCategories": {
       "title": "Custom Categories",
       "description": "Create and manage custom measurement categories"
