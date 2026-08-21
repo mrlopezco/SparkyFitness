@@ -41,6 +41,9 @@ RUN apk add --no-cache curl postgresql18-client tar gzip
 COPY --from=backend_builder /deploy ./
 COPY --from=backend_builder /deploy/package.json /app/package.json
 
+# Runtime default (not set via Coolify compose — Coolify locks any compose env key).
+ENV NODE_ENV=production
+
 # Expose the port your backend server listens on
 EXPOSE 3010
 
