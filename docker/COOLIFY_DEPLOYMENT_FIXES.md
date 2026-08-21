@@ -60,6 +60,32 @@ In Coolify UI:
 2. Watch the build logs for any errors
 3. If build fails, check the logs for the actual error message
 
+## Environment Variable Setup
+
+### For New Deployments
+
+If this is a **new deployment** with empty database volumes:
+
+1. **Generate fresh secrets**:
+   ```powershell
+   # Windows
+   powershell docker/generate-secrets.ps1
+   ```
+   ```bash
+   # Linux/Mac
+   bash docker/generate-secrets.sh
+   ```
+
+2. **Use the template**:
+   - Copy `.env.coolify.template` to `.env.coolify`
+   - Replace all `CHANGE_ME` values with your generated secrets
+   - Update your domain in `SPARKY_FITNESS_FRONTEND_URL`
+   - Paste all variables into Coolify's Environment Variables UI
+
+### For Existing Deployments
+
+If you already have production data, **DO NOT regenerate secrets**. Use your existing `.env.coolify` file.
+
 ## Environment Variable Checklist
 
 Copy these from `.env.coolify` into Coolify's Environment Variables UI:
