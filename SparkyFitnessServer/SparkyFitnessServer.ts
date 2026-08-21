@@ -70,6 +70,9 @@ import onboardingRoutes from './routes/onboardingRoutes.js';
 import customNutrientRoutes from './routes/customNutrientRoutes.js';
 import aiUnitConversionRoutes from './routes/aiUnitConversionRoutes.js';
 import aiMealLogRoutes from './routes/aiMealLogRoutes.js';
+import trainingPlanRoutes from './routes/trainingPlanRoutes.js';
+import trainingCoachRoutes from './routes/trainingCoachRoutes.js';
+import trainingCheckInService from './services/trainingCheckInService.js';
 import allergenPreferenceRoutes from './routes/allergenPreferenceRoutes.js';
 import { applyMigrations } from './utils/dbMigrations.js';
 import { applyRlsPolicies } from './utils/applyRlsPolicies.js';
@@ -488,6 +491,10 @@ app.get('/api/ping', (_req, res) =>
 app.use('/api/chat', chatRoutes);
 app.use('/api/ai', aiUnitConversionRoutes);
 app.use('/api/ai', aiMealLogRoutes);
+// Coach/fitness-test routes mount first: their static `/fitness-tests` and
+// `/ai/adjust` paths would otherwise be captured by trainingPlanRoutes' `/:id`.
+app.use('/api/training-plans', trainingCoachRoutes);
+app.use('/api/training-plans', trainingPlanRoutes);
 app.use('/api/foods', foodRoutes);
 app.use('/api/favorites', favoritesRoutes);
 app.use('/api/v2/foods', v2FoodRoutes);
@@ -830,6 +837,17 @@ const scheduleHevySyncs = async () => {
     }
   });
 };
+// Training plan weekly coach check-ins (fork feature). The scan itself never
+// throws; this wrapper only guards against a scheduling-level failure.
+const scheduleTrainingPlanCheckIns = async () => {
+  cron.schedule('0 7 * * *', async () => {
+    try {
+      await trainingCheckInService.runWeeklyCheckIns();
+    } catch (error) {
+      console.error('[CRON] Training plan check-in scan failed:', error);
+    }
+  });
+};
 applyMigrations()
   .then(applyRlsPolicies)
   .then(async () => {
@@ -858,6 +876,7 @@ applyMigrations()
     scheduleStravaSyncs();
     scheduleGoogleHealthSyncs();
     scheduleHevySyncs();
+    scheduleTrainingPlanCheckIns();
     if (process.env.SPARKY_FITNESS_ADMIN_EMAIL) {
       const adminUser = await userRepository.findUserByEmail(
         process.env.SPARKY_FITNESS_ADMIN_EMAIL

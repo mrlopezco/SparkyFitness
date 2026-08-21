@@ -12,7 +12,12 @@ import {
 
 const MODULE_LABEL_KEYS: Record<
   ForkModuleId,
-  { labelKey: string; labelDefault: string; helpKey: string; helpDefault: string }
+  {
+    labelKey: string;
+    labelDefault: string;
+    helpKey: string;
+    helpDefault: string;
+  }
 > = {
   exercises: {
     labelKey: 'settings.moduleVisibility.modules.exercises',
@@ -31,7 +36,7 @@ const MODULE_LABEL_KEYS: Record<
     labelDefault: 'Training Plan',
     helpKey: 'settings.moduleVisibility.modules.trainingPlanHelp',
     helpDefault:
-      'Reserved for a future training-plan feature. Enabling does nothing yet.',
+      'Training plans with goals, commitments, an AI-drafted session calendar and adherence tracking.',
   },
 };
 

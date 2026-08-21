@@ -5,6 +5,7 @@ import moment from 'moment';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import { todayInZone, addDays } from '@workspace/shared';
 import measurementService from './measurementService.js';
+import trainingAdherenceService from './trainingAdherenceService.js';
 import type { GarminSyncResult } from './garminSyncResult.js';
 
 import {
@@ -190,6 +191,19 @@ async function syncGarminData(
       tz
     );
     results.activities = processedActivities;
+
+    // Fork feature: score the freshly imported activities against any planned
+    // training sessions. Fire-and-forget — adherence is derived data, so a
+    // failure here must never fail or delay the sync.
+    void trainingAdherenceService
+      .matchForUser(userId, startDate, endDate)
+      .catch((adherenceError) => {
+        log(
+          'warn',
+          `[garminService] Training adherence match failed for user ${userId}:`,
+          adherenceError
+        );
+      });
   } catch (activitiesError) {
     log(
       'error',

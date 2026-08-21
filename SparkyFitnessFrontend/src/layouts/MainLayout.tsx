@@ -12,6 +12,7 @@ import {
   Settings as SettingsIcon,
   LogOut,
   Dumbbell, // Used for Exercises
+  ClipboardList, // Used for Training Plan
   Target, // Used for Goals
   Pill, // Used for Medications
   Shield,
@@ -134,7 +135,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     const items: AddCompItem[] = [];
     if (!isActingOnBehalf) {
       // Keep this order consistent with the desktop tab order in availableTabs:
-      // Check-In, Cycle, Medications, Foods, Exercises, Goals.
+      // Check-In, Cycle, Medications, Foods, Exercises, Training, Goals.
       items.push({ value: 'checkin', label: 'Check-In', icon: Activity });
       if (cycleSettings?.enabled) {
         items.push({
@@ -159,6 +160,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           label: t('exercise.title', 'Exercises'),
           icon: Dumbbell,
         },
+        {
+          value: 'training',
+          label: t('nav.training', 'Training'),
+          icon: ClipboardList,
+        },
         { value: 'goals', label: 'Goals', icon: Target },
         {
           value: 'foodlog',
@@ -180,7 +186,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         });
       }
     }
-    return items.filter((item) => isNavItemAllowedByModules(item.value, modules));
+    return items.filter((item) =>
+      isNavItemAllowedByModules(item.value, modules)
+    );
   }, [isActingOnBehalf, hasWritePermission, cycleSettings, t, modules]);
 
   // Map meal type names to icons
@@ -269,6 +277,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           value: '/exercises',
           label: t('exercise.title', 'Exercises'),
           icon: Dumbbell,
+        },
+        {
+          value: '/training',
+          label: t('nav.training', 'Training'),
+          icon: ClipboardList,
         },
         { value: '/goals', label: t('nav.goals'), icon: Target },
         { value: '/settings', label: t('nav.settings'), icon: SettingsIcon }

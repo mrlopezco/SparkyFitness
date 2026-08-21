@@ -571,7 +571,8 @@
     "pregnancy": "Pregnancy",
     "medications": "Medications",
     "foodLog": "Food Log",
-    "wellness": "Wellness"
+    "wellness": "Wellness",
+    "training": "Training"
   },
   "nutrition": {
     "calories": "Calories",
@@ -1407,7 +1408,7 @@
         "medications": "Medications",
         "medicationsHelp": "Medications library and related navigation.",
         "trainingPlan": "Training Plan",
-        "trainingPlanHelp": "Reserved for a future training-plan feature. Enabling does nothing yet."
+        "trainingPlanHelp": "Training plans with goals, commitments, an AI-drafted session calendar and adherence tracking."
       }
     },
     "customCategories": {
@@ -4786,5 +4787,267 @@
     "moveImageEarlier": "Move image left",
     "moveImageLater": "Move image right",
     "imagesReorderHint": "Drag to reorder. The first image is used as the thumbnail."
+  },
+  "training": {
+    "title": "Training Plan",
+    "tabs": {
+      "overview": "Overview",
+      "goals": "Goals & commitments",
+      "calendar": "Calendar",
+      "coach": "Coach",
+      "fitnessTests": "Fitness tests"
+    },
+    "plans": {
+      "title": "Your plans",
+      "description": "Pick the plan the goals editor and calendar should follow.",
+      "loading": "Loading plans…",
+      "empty": "No training plans yet. Create one below.",
+      "past": "Completed & archived",
+      "activate": "Activate",
+      "syncAdherence": "Match activities",
+      "delete": "Delete plan",
+      "deleteTitle": "Delete training plan",
+      "deleteDescription": "This removes the plan, its goals, commitments and planned sessions.",
+      "deleteConfirm": "Delete"
+    },
+    "create": {
+      "title": "New training plan",
+      "description": "Set the block window and sport focus, then add goals and let the coach draft sessions.",
+      "name": "Plan name",
+      "namePlaceholder": "Spring 10K build",
+      "startDate": "Start date",
+      "targetDate": "Target date",
+      "sportFocus": "Sport focus",
+      "submit": "Create plan",
+      "submitting": "Creating…"
+    },
+    "progress": {
+      "title": "Goal progress",
+      "description": "Progress tracking arrives with the coach review; goals and targets are shown here for now.",
+      "empty": "No goals yet — add them in the Goals & commitments tab.",
+      "pending": "Tracking soon"
+    },
+    "coach": {
+      "title": "AI coach",
+      "description": "Draft sessions for this plan from your recent training, goals and commitments. Nothing is saved until you confirm.",
+      "notes": "Notes for the coach",
+      "notesPlaceholder": "e.g. keep long runs on Sunday, no doubles, knee is sensitive to speed work",
+      "generate": "Generate plan",
+      "generating": "Drafting plan…"
+    },
+    "adjust": {
+      "suggest": "Suggest adjustment",
+      "pending": "Reviewing your block…",
+      "description": "Adjusting keeps your goals and reads what you actually did, then reworks the remaining sessions."
+    },
+    "coachChat": {
+      "selectPlan": "Select or create a plan first.",
+      "sessionsTitle": "Coach chats",
+      "sessionsDescription": "Each chat is summarised when you close it, so the coach keeps context without replaying every message.",
+      "loadingSessions": "Loading chats…",
+      "noSessions": "No chats yet. Start one to ask the coach about this block.",
+      "untitled": "Coach check-in",
+      "newTitle": "New chat title (optional)",
+      "newTitlePlaceholder": "Weekly check-in",
+      "newSession": "Start chat",
+      "threadTitle": "Coach conversation",
+      "threadDescription": "Ask about load, niggles, or a session you want moved. The coach reads your plan, snapshot and memories.",
+      "noActiveSession": "Start a chat to talk to the coach.",
+      "loadingThread": "Loading conversation…",
+      "emptyThread": "No messages yet. Say what changed this week.",
+      "message": "Message",
+      "messagePlaceholder": "e.g. I missed Tuesday intervals, calf was tight. What should this week look like?",
+      "closedPlaceholder": "This chat is closed. Start a new one to keep talking.",
+      "send": "Send",
+      "sending": "Coach is thinking…",
+      "close": "Close chat",
+      "memoriesTitle": "What the coach remembers",
+      "memoriesDescription": "Durable facts the coach reuses in every chat, like injuries or schedule constraints.",
+      "noMemories": "Nothing remembered yet.",
+      "memoryKey": "Label",
+      "memoryKeyPlaceholder": "injury_history",
+      "memoryValue": "Detail",
+      "memoryValuePlaceholder": "Left knee flares up on back-to-back speed days",
+      "addMemory": "Add memory",
+      "deleteMemory": "Delete memory",
+      "status": {
+        "open": "Open",
+        "closed": "Closed"
+      },
+      "role": {
+        "user": "You",
+        "assistant": "Coach",
+        "system": "Context"
+      }
+    },
+    "skip": {
+      "action": "Skip",
+      "title": "Skip this session",
+      "description": "Tell the coach why this session did not happen. It uses the reason when it adjusts the rest of the block.",
+      "descriptionWithSession": "Tell the coach why {{session}} did not happen. It uses the reason when it adjusts the rest of the block.",
+      "reason": "Reason",
+      "reasonPlaceholder": "e.g. calf was tight after the long run, took a rest day instead",
+      "reasonLabel": "Skipped: {{reason}}",
+      "cancel": "Cancel",
+      "confirm": "Mark skipped",
+      "saving": "Saving…"
+    },
+    "fitnessTests": {
+      "title": "Fitness tests",
+      "description": "Periodic benchmarks the coach uses to re-estimate your training paces.",
+      "selectPlan": "Select or create a plan first.",
+      "loading": "Loading tests…",
+      "noScheduled": "No tests scheduled.",
+      "past": "Completed & skipped",
+      "scheduleTitle": "Schedule a test",
+      "type": "Test type",
+      "testTitle": "Title",
+      "testTitlePlaceholder": "Mid-block 5K check",
+      "date": "Date",
+      "instructions": "Instructions",
+      "instructionsPlaceholder": "e.g. 15 min warm-up, 5 km flat and hard, 10 min cool-down",
+      "schedule": "Schedule test",
+      "scheduling": "Scheduling…",
+      "report": "Report results",
+      "reportTitle": "Report test results",
+      "minutes": "Minutes",
+      "seconds": "Seconds",
+      "distanceKm": "Distance (km)",
+      "avgHeartRate": "Avg heart rate",
+      "perceivedEffort": "RPE (1-10)",
+      "notes": "Notes",
+      "saveResults": "Save results",
+      "saving": "Saving…",
+      "cancel": "Cancel",
+      "delete": "Delete test"
+    },
+    "science": {
+      "title": "Fitness snapshot",
+      "description": "Training paces the coach derives from your race predictions and reported tests.",
+      "easyPace": "Easy pace",
+      "tempoPace": "Tempo pace",
+      "thresholdPace": "Threshold pace",
+      "perKm": " /km",
+      "predictions": "Predictions",
+      "half": "Half",
+      "recentTests": "Recent fitness tests"
+    },
+    "snapshot": {
+      "title": "Athlete snapshot",
+      "summary": "As of {{date}} · {{sessions}} sessions · {{distance}} km",
+      "none": "No snapshot yet. Build one so the coach can see your recent load.",
+      "refresh": "Refresh snapshot"
+    },
+    "goals": {
+      "title": "Goals",
+      "description": "What this block is for: a race, a body-weight target, a volume or habit goal.",
+      "empty": "No goals yet.",
+      "selectPlan": "Select or create a plan first.",
+      "type": "Type",
+      "goalTitle": "Title",
+      "targetDate": "Target date",
+      "add": "Add goal",
+      "remove": "Remove goal",
+      "save": "Save goals"
+    },
+    "commitments": {
+      "title": "Commitments",
+      "description": "Recurring or one-off activities the coach should plan around, like a weekly football match.",
+      "empty": "No commitments yet.",
+      "commitmentTitle": "Title",
+      "activityType": "Activity",
+      "activityPlaceholder": "football",
+      "intensity": "Intensity",
+      "date": "One-off date",
+      "recurrence": "Repeats on",
+      "blocksTraining": "Blocks training",
+      "add": "Add commitment",
+      "remove": "Remove commitment",
+      "save": "Save commitments"
+    },
+    "calendar": {
+      "dayTitle": "Day detail",
+      "loading": "Loading sessions…",
+      "emptyDay": "Nothing planned for this day.",
+      "commitment": "Commitment",
+      "sun": "Sun",
+      "mon": "Mon",
+      "tue": "Tue",
+      "wed": "Wed",
+      "thu": "Thu",
+      "fri": "Fri",
+      "sat": "Sat"
+    },
+    "review": {
+      "title": "Review proposed plan",
+      "date": "Date",
+      "type": "Type",
+      "sessionTitle": "Title",
+      "distanceKm": "km",
+      "durationMinutes": "min",
+      "remove": "Remove session",
+      "workoutPresetId": "Workout preset id",
+      "workoutPresetIdPlaceholder": "Paste a workout preset id to link this strength day",
+      "workoutPresetIdInvalid": "Not a valid preset id. Clear the field or paste the full id.",
+      "reject": "Reject",
+      "confirm": "Confirm plan",
+      "confirming": "Saving…"
+    },
+    "planStatus": {
+      "draft": "Draft",
+      "active": "Active",
+      "completed": "Completed",
+      "archived": "Archived"
+    },
+    "sportFocus": {
+      "running": "Running",
+      "cycling": "Cycling",
+      "mixed": "Mixed",
+      "other": "Other"
+    },
+    "goalType": {
+      "race": "Race",
+      "body_weight": "Body weight",
+      "volume": "Volume",
+      "habit": "Habit",
+      "custom": "Custom"
+    },
+    "intensity": {
+      "low": "Low",
+      "moderate": "Moderate",
+      "high": "High"
+    },
+    "sessionType": {
+      "easy_run": "Easy run",
+      "intervals": "Intervals",
+      "tempo": "Tempo",
+      "long_run": "Long run",
+      "rest": "Rest",
+      "strength": "Strength",
+      "cross_train": "Cross-train",
+      "race": "Race",
+      "other": "Other"
+    },
+    "status": {
+      "planned": "Planned",
+      "completed": "Completed",
+      "skipped": "Skipped",
+      "moved": "Moved",
+      "partial": "Partial"
+    },
+    "fitnessTestType": {
+      "5k_time_trial": "5K time trial",
+      "10k_time_trial": "10K time trial",
+      "cooper_12min": "Cooper 12-minute test",
+      "mile_effort": "Mile effort",
+      "easy_aerobic_check": "Easy aerobic check",
+      "custom": "Custom"
+    },
+    "fitnessTestStatus": {
+      "scheduled": "Scheduled",
+      "completed": "Completed",
+      "skipped": "Skipped",
+      "cancelled": "Cancelled"
+    }
   }
 }

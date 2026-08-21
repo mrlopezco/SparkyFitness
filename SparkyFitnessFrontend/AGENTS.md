@@ -42,7 +42,7 @@ pnpm run build
 
 Features are organized by domain, and the same domain folder name appears in `src/pages/`, `src/api/`, and `src/hooks/`. A feature change usually touches the matching folder in all three:
 
-- Page domains: `Admin`, `Auth`, `Chat`, `CheckIn`, `Cycle`, `Diary`, `Errors`, `Exercises`, `Fasting`, `Foods`, `Goals`, `Integrations`, `Medications`, `Reports`, `Settings`.
+- Page domains: `Admin`, `Auth`, `Chat`, `CheckIn`, `Cycle`, `Diary`, `Errors`, `Exercises`, `Fasting`, `Foods`, `Goals`, `Integrations`, `Medications`, `Reports`, `Settings`, `Training`.
 - API domains add a few more: `AiConversions`, `AiMealLog`, `Chatbot`, `Onboarding`, `Pregnancy`, `SleepScience`.
 - Example: a Medications bug lives in `src/pages/Medications/` + `src/api/Medications/` + `src/hooks/` medication hooks. Start there, not with a repo-wide search.
 - AI purple accent helpers: `src/components/ai/aiAccent.ts`. Custom-food NL draft dialog: `src/components/FoodSearch/AiFoodDraftDialog.tsx`.
@@ -99,6 +99,7 @@ When searching, ignore `node_modules/`, `dist/`, and every locale except `public
 - Theme/preferences issue: `src/contexts/ThemeContext.tsx`, `src/contexts/PreferencesContext.tsx`, `src/services/preferenceService.ts`, `src/utils/userPreferences.ts`.
 - Missing/wrong UI text: the i18n key in `public/locales/en/translation.json` and the `t('...')` call site.
 - Chart issue: Recharts usage in the domain page plus `src/components/ExerciseCharts/` or `ZoomableChart.tsx`.
+- Training plan issue: `src/pages/Training/`, `src/api/Training/`, `src/hooks/Training/`; the page is gated by the `training_plan` fork module (`src/config/forkModules.ts`, Settings → Module Visibility).
 
 ## Priority Rule
 

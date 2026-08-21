@@ -29,7 +29,7 @@ Package-level guides win. For work inside a package, follow that package's `AGEN
 
 ## Fork policy (upstream merge safety)
 
-This clone is often used as a **fork** of upstream SparkyFitness (`CodeWithCJ/SparkyFitness`). Cursor agents must follow `.cursor/rules/fork-upstream-isolation.mdc`: keep fork features additive (new files + thin hooks into existing ones), avoid drive-by rewrites of upstream modules, and treat `main` as an upstream mirror / `deploy` as Coolify / `feature/*` as fork work. See also `docs/content/1.install/12.fork-ai-meal-log.md`.
+This clone is often used as a **fork** of upstream SparkyFitness (`CodeWithCJ/SparkyFitness`). Cursor agents must follow `.cursor/rules/fork-upstream-isolation.mdc`: keep fork features additive (new files + thin hooks into existing ones), avoid drive-by rewrites of upstream modules, and treat `main` as an upstream mirror / `deploy` as Coolify / `feature/*` as fork work. See also `docs/content/1.install/12.fork-ai-meal-log.md` and `docs/content/1.install/13.fork-training-plan.md`.
 
 For `docs/` and `SparkyFitnessGarmin/`, there is no package-level `AGENTS.md`. `SparkyFitnessGarmin/` is only a handful of Python files (`main.py`, `routes.py`, `service.py`, `schemas.py`); read them directly. For `docs/`, inspect the local manifest and content layout.
 

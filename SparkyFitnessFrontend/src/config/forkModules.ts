@@ -14,7 +14,7 @@ export interface ForkModuleDefinition {
   routePrefixes: string[];
   /** Values used in MainLayout Add sheet items. */
   addCompValues: string[];
-  /** Whether the Settings toggle is shown (training_plan is reserved). */
+  /** Whether the Settings toggle is shown. */
   showInSettings: boolean;
 }
 
@@ -37,8 +37,8 @@ export const FORK_MODULE_DEFINITIONS: ForkModuleDefinition[] = [
   },
   {
     id: 'training_plan',
-    routePrefixes: [],
-    addCompValues: [],
+    routePrefixes: ['/training'],
+    addCompValues: ['training'],
     showInSettings: true,
   },
 ];
@@ -50,12 +50,11 @@ export {
   resolveForkModuleMap,
 };
 
-export function getModuleIdForPath(
-  pathname: string
-): ForkModuleId | undefined {
-  const normalized = pathname.endsWith('/') && pathname.length > 1
-    ? pathname.slice(0, -1)
-    : pathname;
+export function getModuleIdForPath(pathname: string): ForkModuleId | undefined {
+  const normalized =
+    pathname.endsWith('/') && pathname.length > 1
+      ? pathname.slice(0, -1)
+      : pathname;
   for (const def of FORK_MODULE_DEFINITIONS) {
     for (const prefix of def.routePrefixes) {
       if (normalized === prefix || normalized.startsWith(`${prefix}/`)) {
