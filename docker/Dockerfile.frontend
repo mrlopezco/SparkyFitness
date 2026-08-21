@@ -29,6 +29,14 @@ ARG NGINX_RATE_LIMIT
 ARG NODE_ENV
 ARG COOLIFY_FQDN
 ARG SERVICE_FQDN_SPARKYFITNESS_FRONTEND_8080
+# Additional ARGs that Coolify may pass (legacy/unused but need declaration)
+ARG DB_PATH
+ARG SERVER_BACKUP_PATH
+ARG SERVER_UPLOADS_PATH
+ARG SPARKY_FITNESS_FRONTEND_PORT
+ARG SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS
+ARG NGINX_LISTEN_PORT
+ARG NGINX_DUMP_CONFIG
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@10.30.3 --activate
@@ -53,8 +61,10 @@ RUN NODE_ENV=development pnpm install --frozen-lockfile --prod=false --filter sp
 COPY SparkyFitnessFrontend/ ./SparkyFitnessFrontend/
 COPY shared/ ./shared/
 
-# Build the application (NODE_ENV=production for optimized Vite output; tooling already installed)
-RUN NODE_ENV=production pnpm --filter sparkyfitnessfrontend run build
+# Build the application (skip validation - that belongs in CI, not Docker build)
+# Call vite directly instead of 'pnpm run build' which includes typecheck/lint/prettier
+WORKDIR /app/SparkyFitnessFrontend
+RUN NODE_ENV=production pnpm exec vite build
 
 # Stage 2: Serve the application with Nginx
 FROM nginx:alpine3.22
