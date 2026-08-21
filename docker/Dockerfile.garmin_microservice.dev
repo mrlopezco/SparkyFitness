@@ -2,6 +2,18 @@
 # FROM python:3.13.7-alpine3.22
 FROM python:3.13.7-slim-trixie
 
+# Declare ARGs that Coolify may pass (prevents auto-injection)
+# These are runtime config, not build-time config, but declaring them prevents injection
+ARG GARMIN_MICROSERVICE_URL
+ARG GARMIN_SERVICE_PORT
+ARG GARMIN_SERVICE_IS_CN
+ARG SPARKY_FITNESS_DB_NAME
+ARG SPARKY_FITNESS_DB_USER
+ARG SPARKY_FITNESS_DB_PASSWORD
+ARG SPARKY_FITNESS_FRONTEND_URL
+ARG TZ
+ARG COOLIFY_FQDN
+
 RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates curl openssl git \
   && rm -rf /var/lib/apt/lists/* \
