@@ -34,7 +34,8 @@ services:
       SPARKY_FITNESS_LOG_LEVEL: ${SPARKY_FITNESS_LOG_LEVEL:-ERROR}
       ALLOW_PRIVATE_NETWORK_CORS: ${ALLOW_PRIVATE_NETWORK_CORS:-false}
       ALLOW_PRIVATE_NETWORK_AI: ${ALLOW_PRIVATE_NETWORK_AI:-false}
-      SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS: ${SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS:-}
+      # Hardcoded empty — Coolify forbids deleting env vars still referenced as ${VAR}
+      SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS: ""
       SPARKY_FITNESS_PUBLIC_API_DOCS: ${SPARKY_FITNESS_PUBLIC_API_DOCS:-false}
       SPARKY_FITNESS_DB_USER: ${SPARKY_FITNESS_DB_USER:-sparky}
       SPARKY_FITNESS_DB_HOST: sparkyfitness-db
@@ -77,8 +78,9 @@ services:
       SPARKY_FITNESS_SERVER_HOST: sparkyfitness-server
       SPARKY_FITNESS_SERVER_PORT: 3010
       NGINX_RATE_LIMIT: ${NGINX_RATE_LIMIT:-5r/s}
-      NGINX_LISTEN_PORT: ${NGINX_LISTEN_PORT:-}
-      NGINX_DUMP_CONFIG: ${NGINX_DUMP_CONFIG:-false}
+      # Hardcoded — Coolify forbids deleting env vars still referenced as ${VAR}
+      NGINX_LISTEN_PORT: ""
+      NGINX_DUMP_CONFIG: "false"
       PUID: 1000
       GUID: 1000
     networks:
