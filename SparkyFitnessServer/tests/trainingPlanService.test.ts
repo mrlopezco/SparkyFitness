@@ -65,7 +65,7 @@ vi.mock('../utils/outboundUrlPolicy.js', () => ({
 
 const trainingPlanService = (await import('../services/trainingPlanService.js'))
   .default;
-const { proposeTrainingPlan, ProviderResponseError, NotFoundError } =
+const { proposeTrainingPlan, ProviderResponseError, NotFoundError, buildProposeChunks } =
   await import('../services/trainingPlanAiService.js');
 
 const USER_ID = '11111111-1111-4111-8111-111111111111';
@@ -229,6 +229,16 @@ describe('createPlan', () => {
       })
     ).rejects.toThrow('start_date must not be after target_date.');
     expect(repo.createPlan).not.toHaveBeenCalled();
+  });
+});
+
+describe('buildProposeChunks', () => {
+  it('splits a multi-month window into ~28-day chunks', () => {
+    expect(buildProposeChunks('2026-09-01', '2026-10-31', 28)).toEqual([
+      { start: '2026-09-01', end: '2026-09-28' },
+      { start: '2026-09-29', end: '2026-10-26' },
+      { start: '2026-10-27', end: '2026-10-31' },
+    ]);
   });
 });
 

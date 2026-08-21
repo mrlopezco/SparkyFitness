@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MessageSquarePlus, Send, Trash2 } from 'lucide-react';
+import type { TrainingPlanProposeResponse } from '@workspace/shared';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,9 +27,17 @@ import {
 
 interface CoachPanelProps {
   planId: string | undefined;
+  /** Hide the memories sidebar for the training-plan workspace layout. */
+  compact?: boolean;
+  /** Fired when the coach returns a plan proposal to review. */
+  onPlanProposal?: (proposal: TrainingPlanProposeResponse) => void;
 }
 
-export default function CoachPanel({ planId }: CoachPanelProps) {
+export default function CoachPanel({
+  planId,
+  compact = false,
+  onPlanProposal,
+}: CoachPanelProps) {
   const { t } = useTranslation();
 
   const [pickedSessionId, setPickedSessionId] = useState<string | null>(null);
@@ -77,12 +86,15 @@ export default function CoachPanel({ planId }: CoachPanelProps) {
     if (!planId || !activeSessionId) return;
     const content = draft.trim();
     if (!content) return;
-    await sendMessageMutation.mutateAsync({
+    const response = await sendMessageMutation.mutateAsync({
       planId,
       sessionId: activeSessionId,
       payload: { content },
     });
     setDraft('');
+    if (response.plan_proposal) {
+      onPlanProposal?.(response.plan_proposal);
+    }
   };
 
   const handleAddMemory = async () => {
@@ -115,7 +127,13 @@ export default function CoachPanel({ planId }: CoachPanelProps) {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[20rem_1fr]">
+    <div
+      className={
+        compact
+          ? 'grid gap-6'
+          : 'grid gap-6 lg:grid-cols-[20rem_1fr]'
+      }
+    >
       <div className="space-y-6">
         <Card>
           <CardHeader>
@@ -191,6 +209,7 @@ export default function CoachPanel({ planId }: CoachPanelProps) {
           </CardContent>
         </Card>
 
+        {!compact && (
         <Card>
           <CardHeader>
             <CardTitle className="text-xl font-bold tracking-tight sm:text-2xl">
@@ -284,6 +303,7 @@ export default function CoachPanel({ planId }: CoachPanelProps) {
             </div>
           </CardContent>
         </Card>
+        )}
       </div>
 
       <Card>
@@ -296,7 +316,7 @@ export default function CoachPanel({ planId }: CoachPanelProps) {
             {sessionDetail?.summary?.summary ||
               t(
                 'training.coachChat.threadDescription',
-                'Ask about load, niggles, or a session you want moved. The coach reads your plan, snapshot and memories.'
+                'Ask about load, niggles, or a session you want moved. The coach can propose plan changes for you to confirm.'
               )}
           </CardDescription>
         </CardHeader>

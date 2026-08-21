@@ -37,6 +37,23 @@ import {
   GOAL_TYPE_LABELS,
 } from '../trainingConstants';
 
+const WEEKDAYS = [
+  { value: 'MO', labelKey: 'training.commitments.weekday.mo', labelDefault: 'Monday' },
+  { value: 'TU', labelKey: 'training.commitments.weekday.tu', labelDefault: 'Tuesday' },
+  { value: 'WE', labelKey: 'training.commitments.weekday.we', labelDefault: 'Wednesday' },
+  { value: 'TH', labelKey: 'training.commitments.weekday.th', labelDefault: 'Thursday' },
+  { value: 'FR', labelKey: 'training.commitments.weekday.fr', labelDefault: 'Friday' },
+  { value: 'SA', labelKey: 'training.commitments.weekday.sa', labelDefault: 'Saturday' },
+  { value: 'SU', labelKey: 'training.commitments.weekday.su', labelDefault: 'Sunday' },
+] as const;
+
+function weekdayFromRule(rule: string | null | undefined): string {
+  if (!rule) return 'TU';
+  const match = /BYDAY=([A-Z]{2})/i.exec(rule);
+  const day = match?.[1]?.toUpperCase();
+  return WEEKDAYS.some((entry) => entry.value === day) ? (day as string) : 'TU';
+}
+
 interface GoalsCommitmentsEditorProps {
   plan: TrainingPlanDetail;
 }
@@ -252,7 +269,7 @@ export default function GoalsCommitmentsEditor({
           <CardDescription>
             {t(
               'training.commitments.description',
-              'Recurring or one-off activities the coach should plan around, like a weekly football match.'
+              'Weekly or one-off activities the coach should plan around, like a Tuesday football match.'
             )}
           </CardDescription>
         </CardHeader>
@@ -349,44 +366,101 @@ export default function GoalsCommitmentsEditor({
                   </Button>
                 </div>
               </div>
-              <div className="grid gap-3 sm:grid-cols-[10rem_1fr_auto]">
+              <div className="grid gap-3 sm:grid-cols-[9rem_1fr_10rem_auto]">
                 <div className="space-y-1">
                   <Label
-                    htmlFor={`commitment-date-${index}`}
+                    htmlFor={`commitment-schedule-${index}`}
                     className="text-xs"
                   >
-                    {t('training.commitments.date', 'One-off date')}
+                    {t('training.commitments.schedule', 'Schedule')}
                   </Label>
-                  <Input
-                    id={`commitment-date-${index}`}
-                    type="date"
-                    value={commitment.date ?? ''}
-                    onChange={(event) =>
-                      updateCommitment(index, {
-                        date: event.target.value || null,
-                      })
+                  <Select
+                    value={
+                      commitment.recurrence_rule
+                        ? 'weekly'
+                        : commitment.date
+                          ? 'one_off'
+                          : 'one_off'
                     }
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label
-                    htmlFor={`commitment-recurrence-${index}`}
-                    className="text-xs"
+                    onValueChange={(value) => {
+                      if (value === 'weekly') {
+                        updateCommitment(index, {
+                          date: null,
+                          recurrence_rule:
+                            commitment.recurrence_rule || 'FREQ=WEEKLY;BYDAY=TU',
+                        });
+                      } else {
+                        updateCommitment(index, {
+                          recurrence_rule: null,
+                          date: commitment.date,
+                        });
+                      }
+                    }}
                   >
-                    {t('training.commitments.recurrence', 'Repeats on')}
-                  </Label>
-                  <Input
-                    id={`commitment-recurrence-${index}`}
-                    value={commitment.recurrence_rule ?? ''}
-                    placeholder="BYDAY=TU,TH"
-                    onChange={(event) =>
-                      updateCommitment(index, {
-                        recurrence_rule: event.target.value || null,
-                      })
-                    }
-                  />
+                    <SelectTrigger id={`commitment-schedule-${index}`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="one_off">
+                        {t('training.commitments.oneOff', 'One-off date')}
+                      </SelectItem>
+                      <SelectItem value="weekly">
+                        {t('training.commitments.weekly', 'Weekly')}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="flex items-end gap-2 pb-2">
+                {commitment.recurrence_rule ? (
+                  <div className="space-y-1">
+                    <Label
+                      htmlFor={`commitment-weekday-${index}`}
+                      className="text-xs"
+                    >
+                      {t('training.commitments.weekday', 'Weekday')}
+                    </Label>
+                    <Select
+                      value={weekdayFromRule(commitment.recurrence_rule)}
+                      onValueChange={(value) =>
+                        updateCommitment(index, {
+                          recurrence_rule: `FREQ=WEEKLY;BYDAY=${value}`,
+                          date: null,
+                        })
+                      }
+                    >
+                      <SelectTrigger id={`commitment-weekday-${index}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {WEEKDAYS.map((day) => (
+                          <SelectItem key={day.value} value={day.value}>
+                            {t(day.labelKey, day.labelDefault)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <Label
+                      htmlFor={`commitment-date-${index}`}
+                      className="text-xs"
+                    >
+                      {t('training.commitments.date', 'One-off date')}
+                    </Label>
+                    <Input
+                      id={`commitment-date-${index}`}
+                      type="date"
+                      value={commitment.date ?? ''}
+                      onChange={(event) =>
+                        updateCommitment(index, {
+                          date: event.target.value || null,
+                          recurrence_rule: null,
+                        })
+                      }
+                    />
+                  </div>
+                )}
+                <div className="flex items-end gap-2 pb-2 sm:col-span-2">
                   <Switch
                     id={`commitment-blocks-${index}`}
                     checked={commitment.blocks_training}

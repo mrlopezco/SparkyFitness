@@ -8,6 +8,8 @@ import {
   trainingFitnessTestReportRequestSchema,
   trainingFitnessTestStatusSchema,
   trainingPlanAdjustRequestSchema,
+  trainingSessionAiReviewRequestSchema,
+  trainingSessionReportExecutionRequestSchema,
   trainingSessionSkipRequestSchema,
 } from '@workspace/shared';
 import { log } from '../config/logging.js';
@@ -17,6 +19,7 @@ import { resolveIsAdmin } from '../utils/adminCheck.js';
 import trainingCoachService from '../services/trainingCoachService.js';
 import trainingFitnessTestService from '../services/trainingFitnessTestService.js';
 import trainingPlanService from '../services/trainingPlanService.js';
+import trainingSessionExecutionService from '../services/trainingSessionExecutionService.js';
 import { adjustTrainingPlan } from '../services/trainingPlanAiService.js';
 import {
   activeUserId,
@@ -372,6 +375,104 @@ router.post(
       log(
         'error',
         `Unexpected error skipping session ${req.params.sessionId} for user ${req.userId}:`,
+        error
+      );
+      next(error);
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /training-plans/{id}/sessions/{sessionId}/report-execution:
+ *   post:
+ *     summary: Log how a planned session went (done / partial + score)
+ *     tags: [TrainingPlans]
+ *     security:
+ *       - cookieAuth: []
+ */
+router.post(
+  '/:id/sessions/:sessionId/report-execution',
+  authenticate,
+  checkPermissionMiddleware('diary'),
+  async (req, res, next) => {
+    const ids = z
+      .object({ id: uuidSchema, sessionId: uuidSchema })
+      .safeParse(req.params);
+    if (!ids.success) {
+      return invalidRequest(res, ids.error.issues);
+    }
+    const validation =
+      trainingSessionReportExecutionRequestSchema.safeParse(req.body);
+    if (!validation.success) {
+      return invalidRequest(res, validation.error.issues);
+    }
+    try {
+      const isAdmin = await resolveIsAdmin(req.user, req.authenticatedUserId);
+      const result = await trainingSessionExecutionService.reportExecution(
+        req.authenticatedUserId || activeUserId(req),
+        activeUserId(req),
+        ids.data.id,
+        ids.data.sessionId,
+        validation.data,
+        isAdmin
+      );
+      return res.status(200).json(result);
+    } catch (error) {
+      const handled = respondWithDomainError(res, error);
+      if (handled) return handled;
+      log(
+        'error',
+        `Unexpected error reporting execution for session ${req.params.sessionId} for user ${req.userId}:`,
+        error
+      );
+      next(error);
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /training-plans/{id}/sessions/{sessionId}/ai-review:
+ *   post:
+ *     summary: Ask the AI to review a session execution
+ *     tags: [TrainingPlans]
+ *     security:
+ *       - cookieAuth: []
+ */
+router.post(
+  '/:id/sessions/:sessionId/ai-review',
+  authenticate,
+  checkPermissionMiddleware('diary'),
+  async (req, res, next) => {
+    const ids = z
+      .object({ id: uuidSchema, sessionId: uuidSchema })
+      .safeParse(req.params);
+    if (!ids.success) {
+      return invalidRequest(res, ids.error.issues);
+    }
+    const validation =
+      trainingSessionAiReviewRequestSchema.safeParse(req.body ?? {});
+    if (!validation.success) {
+      return invalidRequest(res, validation.error.issues);
+    }
+    try {
+      const isAdmin = await resolveIsAdmin(req.user, req.authenticatedUserId);
+      const result = await trainingSessionExecutionService.generateAiReview(
+        req.authenticatedUserId || activeUserId(req),
+        activeUserId(req),
+        ids.data.id,
+        ids.data.sessionId,
+        validation.data,
+        isAdmin
+      );
+      return res.status(200).json(result);
+    } catch (error) {
+      const handled = respondWithDomainError(res, error);
+      if (handled) return handled;
+      log(
+        'error',
+        `Unexpected error reviewing session ${req.params.sessionId} for user ${req.userId}:`,
         error
       );
       next(error);

@@ -63,6 +63,8 @@ export const trainingSessionPrescriptionSchema = z.object({
   pace_tempo_min_per_km: z.number().positive().nullable().optional(),
   pace_threshold_min_per_km: z.number().positive().nullable().optional(),
   heart_rate_zone: z.string().max(40).nullable().optional(),
+  /** How to execute: HR zones, paces, or strength sets/reps. */
+  instructions: z.string().max(4000).nullable().optional(),
   notes: z.string().max(2000).nullable().optional(),
   /** Optional link to an existing workout preset for strength days. */
   workout_preset_id: z.string().uuid().nullable().optional(),
@@ -160,6 +162,8 @@ export const trainingSessionCompletionSchema = z.object({
   plan_session_id: z.string().uuid(),
   exercise_entry_id: z.string().uuid().nullable(),
   adherence_score: z.number().min(0).max(1).nullable(),
+  /** Athlete self-score 0–10; separate from auto Garmin adherence_score. */
+  athlete_execution_score: z.number().int().min(0).max(10).nullable().optional(),
   matched_by: z.enum(["auto", "manual", "ai"]).nullable(),
   notes: z.string().nullable(),
   skip_reason: z.string().nullable().optional(),
@@ -170,6 +174,28 @@ export const trainingSessionCompletionSchema = z.object({
 
 export const trainingSessionSkipRequestSchema = z.object({
   reason: z.string().trim().min(1).max(2000),
+});
+
+export const trainingSessionReportExecutionRequestSchema = z.object({
+  status: z.enum(["completed", "partial"]),
+  execution_score: z.number().int().min(0).max(10).optional(),
+  notes: z.string().max(4000).nullable().optional(),
+  request_ai_review: z.boolean().default(false),
+  service_config_id: z.string().uuid().optional(),
+});
+
+export const trainingSessionReportExecutionResponseSchema = z.object({
+  session: trainingPlanSessionSchema,
+  completion: trainingSessionCompletionSchema,
+});
+
+export const trainingSessionAiReviewRequestSchema = z.object({
+  service_config_id: z.string().uuid().optional(),
+});
+
+export const trainingSessionAiReviewResponseSchema = z.object({
+  completion: trainingSessionCompletionSchema,
+  ai_review: z.string(),
 });
 
 export const trainingPlanSchema = z.object({
@@ -289,11 +315,40 @@ export const trainingPlanProposedSessionSchema = z.object({
   prescription: trainingSessionPrescriptionSchema,
 });
 
+/** Fitness-test types (also used by propose/confirm payloads above the full test schemas). */
+export const trainingFitnessTestTypeSchema = z.enum([
+  "5k_time_trial",
+  "10k_time_trial",
+  "cooper_12min",
+  "mile_effort",
+  "easy_aerobic_check",
+  "custom",
+]);
+
+export const trainingFitnessTestPrescriptionSchema = z.object({
+  distance_km: z.number().positive().nullable().optional(),
+  duration_minutes: z.number().positive().nullable().optional(),
+  target_effort: z.string().max(120).nullable().optional(),
+  instructions: z.string().max(4000).nullable().optional(),
+});
+
+export const trainingPlanProposedFitnessTestSchema = z.object({
+  client_id: z.string().min(1),
+  test_type: trainingFitnessTestTypeSchema,
+  title: z.string().min(1).max(200),
+  scheduled_date: dayStringSchema,
+  prescription: trainingFitnessTestPrescriptionSchema.default({}),
+  due_interval_days: z.number().int().positive().nullable().optional(),
+  notes: z.string().max(2000).nullable().optional(),
+});
+
 export const trainingPlanProposeResponseSchema = z.object({
   plan_id: z.string().uuid(),
   summary: z.string(),
   weekly_volume_notes: z.string().nullable().optional(),
   sessions: z.array(trainingPlanProposedSessionSchema).min(1),
+  /** Optional fitness tests to schedule when the athlete confirms the proposal. */
+  fitness_tests: z.array(trainingPlanProposedFitnessTestSchema).optional(),
   warnings: z.array(z.string()).optional(),
 });
 
@@ -301,6 +356,7 @@ export const trainingPlanConfirmRequestSchema = z.object({
   plan_id: z.string().uuid(),
   replace_existing: z.boolean().default(true),
   sessions: z.array(trainingPlanProposedSessionSchema).min(1),
+  fitness_tests: z.array(trainingPlanProposedFitnessTestSchema).optional(),
   activate: z.boolean().default(true),
 });
 
@@ -308,6 +364,7 @@ export const trainingPlanConfirmResponseSchema = z.object({
   plan_id: z.string().uuid(),
   created_count: z.number().int().nonnegative(),
   session_ids: z.array(z.string().uuid()),
+  fitness_test_ids: z.array(z.string().uuid()).optional(),
 });
 
 export const trainingPlanErrorCodeSchema = z.enum([
@@ -393,6 +450,9 @@ export type TrainingPlanProposedSession = z.infer<
 >;
 export type TrainingPlanProposeResponse = z.infer<
   typeof trainingPlanProposeResponseSchema
+>;
+export type TrainingPlanProposedFitnessTest = z.infer<
+  typeof trainingPlanProposedFitnessTestSchema
 >;
 export type TrainingPlanConfirmRequest = z.infer<
   typeof trainingPlanConfirmRequestSchema
@@ -483,6 +543,11 @@ export const trainingCoachSendMessageResponseSchema = z.object({
   /** Soft side-effects the coach suggested; applied only when present. */
   scheduled_fitness_test_ids: z.array(z.string().uuid()).optional(),
   memories_added: z.number().int().nonnegative().optional(),
+  /**
+   * Plan proposal from propose_plan_adjustment / propose_full_plan.
+   * Not persisted until the athlete confirms via /ai/confirm.
+   */
+  plan_proposal: trainingPlanProposeResponseSchema.optional(),
 });
 
 export const trainingCoachMemoryUpsertSchema = z.object({
@@ -503,28 +568,12 @@ export const trainingPlanAdjustRequestSchema = z.object({
 
 // --- Fitness snapshots (periodic fitness tests) ---
 
-export const trainingFitnessTestTypeSchema = z.enum([
-  "5k_time_trial",
-  "10k_time_trial",
-  "cooper_12min",
-  "mile_effort",
-  "easy_aerobic_check",
-  "custom",
-]);
-
 export const trainingFitnessTestStatusSchema = z.enum([
   "scheduled",
   "completed",
   "skipped",
   "cancelled",
 ]);
-
-export const trainingFitnessTestPrescriptionSchema = z.object({
-  distance_km: z.number().positive().nullable().optional(),
-  duration_minutes: z.number().positive().nullable().optional(),
-  target_effort: z.string().max(120).nullable().optional(),
-  instructions: z.string().max(4000).nullable().optional(),
-});
 
 export const trainingFitnessTestResultSchema = z.object({
   distance_km: z.number().nonnegative().nullable().optional(),
@@ -571,8 +620,83 @@ export const trainingFitnessTestReportRequestSchema = z.object({
   notes: z.string().max(2000).nullable().optional(),
 });
 
+/** Versioned JSON document for plan export / re-import. */
+export const TRAINING_PLAN_EXPORT_SCHEMA_VERSION = 1 as const;
+
+export const trainingPlanExportDocumentSchema = z.object({
+  schema_version: z.literal(1),
+  exported_at: z.string().optional(),
+  plan: trainingPlanSchema.omit({
+    id: true,
+    user_id: true,
+    created_at: true,
+    updated_at: true,
+  }).extend({
+    id: z.string().uuid().optional(),
+    user_id: z.string().uuid().optional(),
+    created_at: z.string().optional(),
+    updated_at: z.string().optional(),
+  }),
+  goals: z.array(
+    trainingGoalPayloadSchema.extend({
+      id: z.string().uuid().optional(),
+      plan_id: z.string().uuid().optional(),
+      created_at: z.string().optional(),
+    }),
+  ),
+  commitments: z.array(
+    trainingCommitmentPayloadSchema.extend({
+      id: z.string().uuid().optional(),
+      plan_id: z.string().uuid().optional(),
+      created_at: z.string().optional(),
+    }),
+  ),
+  sessions: z.array(
+    trainingPlanSessionPayloadSchema.extend({
+      id: z.string().uuid().optional(),
+      plan_id: z.string().uuid().optional(),
+      skip_reason: z.string().nullable().optional(),
+      created_at: z.string().optional(),
+      updated_at: z.string().optional(),
+    }),
+  ),
+});
+
+export const trainingPlanImportRequestSchema = z.object({
+  document: trainingPlanExportDocumentSchema,
+  /** When set, replace this plan's goals/commitments/sessions instead of creating a new plan. */
+  replace_plan_id: z.string().uuid().optional(),
+  /** Activate the plan after import. */
+  activate: z.boolean().default(false),
+});
+
+export const trainingPlanImportResponseSchema = z.object({
+  plan: trainingPlanDetailSchema,
+});
+
 export type TrainingSessionSkipRequest = z.infer<
   typeof trainingSessionSkipRequestSchema
+>;
+export type TrainingSessionReportExecutionRequest = z.infer<
+  typeof trainingSessionReportExecutionRequestSchema
+>;
+export type TrainingSessionReportExecutionResponse = z.infer<
+  typeof trainingSessionReportExecutionResponseSchema
+>;
+export type TrainingSessionAiReviewRequest = z.infer<
+  typeof trainingSessionAiReviewRequestSchema
+>;
+export type TrainingSessionAiReviewResponse = z.infer<
+  typeof trainingSessionAiReviewResponseSchema
+>;
+export type TrainingPlanExportDocument = z.infer<
+  typeof trainingPlanExportDocumentSchema
+>;
+export type TrainingPlanImportRequest = z.infer<
+  typeof trainingPlanImportRequestSchema
+>;
+export type TrainingPlanImportResponse = z.infer<
+  typeof trainingPlanImportResponseSchema
 >;
 export type TrainingCoachSession = z.infer<typeof trainingCoachSessionSchema>;
 export type TrainingCoachMessage = z.infer<typeof trainingCoachMessageSchema>;

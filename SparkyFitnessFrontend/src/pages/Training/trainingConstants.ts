@@ -41,6 +41,19 @@ export const SESSION_STATUS_LABELS: Record<TrainingSessionStatus, string> = {
   partial: 'Partial',
 };
 
+/** Day-cell fills for future / today sessions, keyed by workout type. */
+export const SESSION_TYPE_COLORS: Record<TrainingSessionType, string> = {
+  easy_run: '#22c55e',
+  intervals: '#ef4444',
+  tempo: '#f97316',
+  long_run: '#8b5cf6',
+  rest: '#94a3b8',
+  strength: '#0ea5e9',
+  cross_train: '#14b8a6',
+  race: '#e11d48',
+  other: '#64748b',
+};
+
 export const GOAL_TYPE_LABELS: Record<TrainingGoalType, string> = {
   race: 'Race',
   body_weight: 'Body weight',
@@ -56,11 +69,11 @@ export const SPORT_FOCUS_LABELS: Record<TrainingSportFocus, string> = {
   other: 'Other',
 };
 
-/** Day-cell fills for the month calendar, keyed by the day's dominant session status. */
+/** Day-cell fills for past sessions, keyed by execution status. */
 export const SESSION_STATUS_COLORS: Record<TrainingSessionStatus, string> = {
   completed: '#10b981',
   partial: '#f59e0b',
-  planned: '#3b82f6',
+  planned: '#64748b',
   skipped: '#ef4444',
   moved: '#94a3b8',
 };

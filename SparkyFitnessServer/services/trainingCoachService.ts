@@ -5,6 +5,7 @@ import {
   addDays,
   todayInZone,
   trainingFitnessTestCreateRequestSchema,
+  trainingPlanProposeResponseSchema,
   type TrainingCoachCreateSessionRequest,
   type TrainingCoachMemory,
   type TrainingCoachMemoryUpsert,
@@ -13,6 +14,7 @@ import {
   type TrainingCoachSendMessageResponse,
   type TrainingCoachSession,
   type TrainingCoachSessionSummary,
+  type TrainingPlanProposeResponse,
 } from '@workspace/shared';
 import { log } from '../config/logging.js';
 import {
@@ -23,6 +25,10 @@ import trainingCoachRepository from '../models/trainingCoachRepository.js';
 import trainingPlanRepository from '../models/trainingPlanRepository.js';
 import trainingAthleteSnapshotService from './trainingAthleteSnapshotService.js';
 import trainingFitnessTestService from './trainingFitnessTestService.js';
+import {
+  adjustTrainingPlan,
+  proposeTrainingPlan,
+} from './trainingPlanAiService.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import {
   dispatchErrorToThrow,
@@ -117,6 +123,22 @@ const COACH_SCHEMA: JsonSchemaNode = {
       },
     },
     ask_skip_for_session_id: { type: 'string' },
+    propose_plan_adjustment: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        user_notes: { type: 'string' },
+        from_date: { type: 'string' },
+        to_date: { type: 'string' },
+      },
+    },
+    propose_full_plan: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        user_notes: { type: 'string' },
+      },
+    },
   },
 };
 
@@ -132,6 +154,8 @@ interface CoachTurn {
   memories: TrainingCoachMemoryUpsert[];
   scheduleFitnessTest: Record<string, unknown> | null;
   askSkipForSessionId: string | null;
+  proposePlanAdjustment: Record<string, unknown> | null;
+  proposeFullPlan: Record<string, unknown> | boolean | null;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -178,6 +202,11 @@ export function parseCoachTurn(json: unknown): CoachTurn | null {
     memories,
     scheduleFitnessTest: asRecord(root.schedule_fitness_test),
     askSkipForSessionId: asNonEmptyString(root.ask_skip_for_session_id),
+    proposePlanAdjustment: asRecord(root.propose_plan_adjustment),
+    proposeFullPlan:
+      root.propose_full_plan === true
+        ? true
+        : asRecord(root.propose_full_plan),
   };
 }
 
@@ -519,6 +548,63 @@ export async function sendMessage(
     turn
   );
 
+  let planProposal: TrainingPlanProposeResponse | undefined;
+  try {
+    if (turn.proposeFullPlan) {
+      const notes =
+        turn.proposeFullPlan === true
+          ? request.content
+          : (asNonEmptyString(turn.proposeFullPlan.user_notes) ??
+            request.content);
+      planProposal = await proposeTrainingPlan(
+        authenticatedUserId,
+        actingUserId,
+        {
+          plan_id: planId,
+          user_notes: notes,
+          replace_existing: true,
+          service_config_id: request.service_config_id,
+        },
+        actorIsAdmin
+      );
+    } else if (turn.proposePlanAdjustment) {
+      const notes =
+        asNonEmptyString(turn.proposePlanAdjustment.user_notes) ??
+        request.content;
+      planProposal = await adjustTrainingPlan(
+        authenticatedUserId,
+        actingUserId,
+        {
+          plan_id: planId,
+          user_notes: notes,
+          from_date: asNonEmptyString(turn.proposePlanAdjustment.from_date) ?? undefined,
+          to_date: asNonEmptyString(turn.proposePlanAdjustment.to_date) ?? undefined,
+          replace_existing: true,
+          service_config_id: request.service_config_id,
+        },
+        actorIsAdmin
+      );
+    }
+    if (planProposal) {
+      const parsed = trainingPlanProposeResponseSchema.safeParse(planProposal);
+      if (!parsed.success) {
+        log(
+          'warn',
+          `[trainingCoach] Discarded an unusable plan proposal for user ${actingUserId}`
+        );
+        planProposal = undefined;
+      } else {
+        planProposal = parsed.data;
+      }
+    }
+  } catch (error) {
+    log(
+      'warn',
+      `[trainingCoach] Plan proposal side effect failed for user ${actingUserId}:`,
+      error
+    );
+  }
+
   return {
     user_message: userMessage,
     assistant_message: assistantMessage,
@@ -526,6 +612,7 @@ export async function sendMessage(
       ? { scheduled_fitness_test_ids: scheduledTestIds }
       : {}),
     ...(memoriesAdded ? { memories_added: memoriesAdded } : {}),
+    ...(planProposal ? { plan_proposal: planProposal } : {}),
   };
 }
 

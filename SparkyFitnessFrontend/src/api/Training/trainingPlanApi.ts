@@ -32,6 +32,13 @@ import {
   trainingPlanSessionSchema,
   trainingPlanUpdateRequestSchema,
   trainingSessionSkipRequestSchema,
+  trainingSessionReportExecutionRequestSchema,
+  trainingSessionReportExecutionResponseSchema,
+  trainingSessionAiReviewRequestSchema,
+  trainingSessionAiReviewResponseSchema,
+  trainingPlanExportDocumentSchema,
+  trainingPlanImportRequestSchema,
+  trainingPlanImportResponseSchema,
   type TrainingAdherenceMatchRequest,
   type TrainingAdherenceMatchResponse,
   type TrainingAthleteSnapshot,
@@ -59,10 +66,17 @@ import {
   type TrainingPlanConfirmResponse,
   type TrainingPlanCreateRequest,
   type TrainingPlanDetail,
+  type TrainingPlanExportDocument,
+  type TrainingPlanImportRequest,
+  type TrainingPlanImportResponse,
   type TrainingPlanProposeRequest,
   type TrainingPlanProposeResponse,
   type TrainingPlanSession,
   type TrainingPlanUpdateRequest,
+  type TrainingSessionAiReviewRequest,
+  type TrainingSessionAiReviewResponse,
+  type TrainingSessionReportExecutionRequest,
+  type TrainingSessionReportExecutionResponse,
   type TrainingSessionSkipRequest,
 } from '@workspace/shared';
 import { apiCall } from '../api';
@@ -260,6 +274,33 @@ export async function skipTrainingSession(
   return trainingPlanSessionSchema.parse(unwrapEnvelope(response, 'session'));
 }
 
+export async function reportTrainingSessionExecution(
+  planId: string,
+  sessionId: string,
+  payload: TrainingSessionReportExecutionRequest
+): Promise<TrainingSessionReportExecutionResponse> {
+  const validatedRequest =
+    trainingSessionReportExecutionRequestSchema.parse(payload);
+  const response = await apiCall(
+    `/training-plans/${planId}/sessions/${sessionId}/report-execution`,
+    { method: 'POST', body: validatedRequest }
+  );
+  return trainingSessionReportExecutionResponseSchema.parse(response);
+}
+
+export async function reviewTrainingSessionExecution(
+  planId: string,
+  sessionId: string,
+  payload: TrainingSessionAiReviewRequest = {}
+): Promise<TrainingSessionAiReviewResponse> {
+  const validatedRequest = trainingSessionAiReviewRequestSchema.parse(payload);
+  const response = await apiCall(
+    `/training-plans/${planId}/sessions/${sessionId}/ai-review`,
+    { method: 'POST', body: validatedRequest }
+  );
+  return trainingSessionAiReviewResponseSchema.parse(response);
+}
+
 export async function adjustTrainingPlan(
   payload: TrainingPlanAdjustRequest
 ): Promise<TrainingPlanProposeResponse> {
@@ -269,6 +310,26 @@ export async function adjustTrainingPlan(
     body: validatedRequest,
   });
   return trainingPlanProposeResponseSchema.parse(response);
+}
+
+export async function exportTrainingPlan(
+  planId: string
+): Promise<TrainingPlanExportDocument> {
+  const response = await apiCall(`/training-plans/${planId}/export`, {
+    method: 'GET',
+  });
+  return trainingPlanExportDocumentSchema.parse(response);
+}
+
+export async function importTrainingPlan(
+  payload: TrainingPlanImportRequest
+): Promise<TrainingPlanImportResponse> {
+  const validatedRequest = trainingPlanImportRequestSchema.parse(payload);
+  const response = await apiCall('/training-plans/import', {
+    method: 'POST',
+    body: validatedRequest,
+  });
+  return trainingPlanImportResponseSchema.parse(response);
 }
 
 // --- Coach conversations ---

@@ -114,6 +114,9 @@ jest.mock('@/hooks/Training/useTrainingPlans', () => ({
   useCreateAthleteSnapshotMutation: () => mockIdleMutation(),
   useMatchTrainingAdherenceMutation: () => mockIdleMutation(),
   useSkipTrainingSessionMutation: () => mockIdleMutation(),
+  useReportTrainingSessionExecutionMutation: () => mockIdleMutation(),
+  useExportTrainingPlanMutation: () => mockIdleMutation(),
+  useImportTrainingPlanMutation: () => mockIdleMutation(),
   useProposeTrainingPlanMutation: () => ({
     mutateAsync: mockPropose,
     isPending: false,
@@ -227,10 +230,11 @@ describe('TrainingPage', () => {
     });
   });
 
-  it('renders the coach and fitness test tabs', () => {
+  it('renders the training plan, coach chats and fitness test tabs', () => {
     render(<TrainingPage />);
 
-    expect(screen.getByRole('button', { name: 'Coach' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Training plan' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Coach Chats' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Fitness tests' })).toBeTruthy();
   });
 });

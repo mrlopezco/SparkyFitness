@@ -3,6 +3,7 @@ import {
   compareDays,
   dayOfWeek,
   daysBetween,
+  TRAINING_PLAN_EXPORT_SCHEMA_VERSION,
   type TrainingAthleteSnapshot,
   type TrainingCalendarDay,
   type TrainingCalendarQuery,
@@ -16,7 +17,11 @@ import {
   type TrainingPlanConfirmResponse,
   type TrainingPlanCreateRequest,
   type TrainingPlanDetail,
+  type TrainingPlanExportDocument,
+  type TrainingPlanImportRequest,
+  type TrainingPlanImportResponse,
   type TrainingPlanSession,
+  type TrainingPlanSessionPayload,
   type TrainingPlanUpdateRequest,
 } from '@workspace/shared';
 import { log } from '../config/logging.js';
@@ -292,6 +297,83 @@ export async function confirmPlan(
   return result;
 }
 
+export async function exportPlan(
+  userId: string,
+  planId: string
+): Promise<TrainingPlanExportDocument> {
+  const detail = await getPlanDetail(userId, planId);
+  return {
+    schema_version: TRAINING_PLAN_EXPORT_SCHEMA_VERSION,
+    exported_at: new Date().toISOString(),
+    plan: detail,
+    goals: detail.goals,
+    commitments: detail.commitments,
+    sessions: detail.sessions ?? [],
+  };
+}
+
+export async function importPlan(
+  userId: string,
+  request: TrainingPlanImportRequest
+): Promise<TrainingPlanImportResponse> {
+  const { document } = request;
+  const sessionPayloads: TrainingPlanSessionPayload[] = document.sessions.map(
+    (session, index) => ({
+      scheduled_date: session.scheduled_date,
+      session_type: session.session_type,
+      status: 'planned',
+      prescription: session.prescription,
+      sort_order: session.sort_order ?? index,
+    })
+  );
+
+  let planId = request.replace_plan_id;
+  if (planId) {
+    await requirePlan(userId, planId);
+    await trainingPlanRepository.updatePlan(userId, planId, {
+      name: document.plan.name,
+      description: document.plan.description,
+      sport_focus: document.plan.sport_focus,
+      start_date: document.plan.start_date,
+      target_date: document.plan.target_date,
+      notes: document.plan.notes,
+      status: request.activate ? 'active' : document.plan.status,
+    });
+  } else {
+    const created = await createPlan(userId, {
+      name: document.plan.name,
+      description: document.plan.description,
+      sport_focus: document.plan.sport_focus,
+      start_date: document.plan.start_date,
+      target_date: document.plan.target_date,
+      notes: document.plan.notes,
+      goals: [],
+      commitments: [],
+    });
+    planId = created.id;
+    if (request.activate) {
+      await trainingPlanRepository.updatePlan(userId, planId, {
+        status: 'active',
+      });
+    }
+  }
+
+  await trainingPlanRepository.replaceGoals(userId, planId, document.goals);
+  await trainingPlanRepository.replaceCommitments(
+    userId,
+    planId,
+    document.commitments
+  );
+  await trainingPlanRepository.replaceSessions(
+    userId,
+    planId,
+    sessionPayloads,
+    true
+  );
+  await refreshSnapshot(userId, planId);
+  return { plan: await getPlanDetail(userId, planId) };
+}
+
 export default {
   listPlans,
   createPlan,
@@ -305,6 +387,8 @@ export default {
   rebuildSnapshot,
   getLatestSnapshot,
   confirmPlan,
+  exportPlan,
+  importPlan,
   commitmentAppliesOn,
   parseRecurrenceWeekdays,
 };

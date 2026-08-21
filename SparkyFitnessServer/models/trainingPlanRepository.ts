@@ -102,7 +102,7 @@ const SESSION_COLUMNS = `id, plan_id,
     created_at, updated_at`;
 
 const COMPLETION_COLUMNS = `id, plan_session_id, exercise_entry_id,
-    adherence_score, matched_by, notes, skip_reason, ai_review,
+    adherence_score, athlete_execution_score, matched_by, notes, skip_reason, ai_review,
     created_at, updated_at`;
 
 const SNAPSHOT_COLUMNS = `id, user_id, plan_id,
@@ -173,6 +173,7 @@ interface CompletionRow {
   plan_session_id: string;
   exercise_entry_id: string | null;
   adherence_score: number | string | null;
+  athlete_execution_score: number | string | null;
   matched_by: string | null;
   notes: string | null;
   skip_reason: string | null;
@@ -274,6 +275,11 @@ function mapCompletion(row: CompletionRow): TrainingSessionCompletion {
     plan_session_id: row.plan_session_id,
     exercise_entry_id: row.exercise_entry_id,
     adherence_score: toNumber(row.adherence_score),
+    athlete_execution_score:
+      row.athlete_execution_score === null ||
+      row.athlete_execution_score === undefined
+        ? null
+        : Math.round(Number(row.athlete_execution_score)),
     matched_by:
       row.matched_by && MATCHED_BY_VALUES.has(row.matched_by)
         ? (row.matched_by as TrainingSessionCompletion['matched_by'])
@@ -502,6 +508,16 @@ async function updatePlan(
 
   const client = await connect(userId);
   try {
+    if (updates.status === 'active') {
+      await client.query(
+        `UPDATE training_plans
+           SET status = 'draft'
+         WHERE user_id = $1
+           AND status = 'active'
+           AND id <> $2`,
+        [userId, planId]
+      );
+    }
     const result = await client.query<PlanRow>(
       `UPDATE training_plans SET ${assignments.join(', ')}
        WHERE id = $1 AND user_id = $2
@@ -715,6 +731,7 @@ interface SessionWithCompletionRow extends SessionRow {
   completion_id: string | null;
   completion_exercise_entry_id: string | null;
   completion_adherence_score: number | string | null;
+  completion_athlete_execution_score: number | string | null;
   completion_matched_by: string | null;
   completion_notes: string | null;
   completion_skip_reason: string | null;
@@ -737,6 +754,7 @@ function mapSessionWithCompletion(
       plan_session_id: row.id,
       exercise_entry_id: row.completion_exercise_entry_id,
       adherence_score: row.completion_adherence_score,
+      athlete_execution_score: row.completion_athlete_execution_score,
       matched_by: row.completion_matched_by,
       notes: row.completion_notes,
       skip_reason: row.completion_skip_reason,
@@ -763,6 +781,7 @@ async function listSessionsInRange(
               c.id AS completion_id,
               c.exercise_entry_id AS completion_exercise_entry_id,
               c.adherence_score AS completion_adherence_score,
+              c.athlete_execution_score AS completion_athlete_execution_score,
               c.matched_by AS completion_matched_by,
               c.notes AS completion_notes,
               c.skip_reason AS completion_skip_reason,
@@ -789,6 +808,7 @@ async function upsertCompletion(
     plan_session_id: string;
     exercise_entry_id?: string | null;
     adherence_score?: number | null;
+    athlete_execution_score?: number | null;
     matched_by?: TrainingSessionCompletion['matched_by'];
     notes?: string | null;
     skip_reason?: string | null;
@@ -799,12 +819,14 @@ async function upsertCompletion(
   try {
     const result = await client.query<CompletionRow>(
       `INSERT INTO training_session_completions
-         (plan_session_id, exercise_entry_id, adherence_score, matched_by, notes, skip_reason, ai_review)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+         (plan_session_id, exercise_entry_id, adherence_score, athlete_execution_score,
+          matched_by, notes, skip_reason, ai_review)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        ON CONFLICT (plan_session_id) DO UPDATE
-         SET exercise_entry_id = EXCLUDED.exercise_entry_id,
-             adherence_score = EXCLUDED.adherence_score,
-             matched_by = EXCLUDED.matched_by,
+         SET exercise_entry_id = COALESCE(EXCLUDED.exercise_entry_id, training_session_completions.exercise_entry_id),
+             adherence_score = COALESCE(EXCLUDED.adherence_score, training_session_completions.adherence_score),
+             athlete_execution_score = COALESCE(EXCLUDED.athlete_execution_score, training_session_completions.athlete_execution_score),
+             matched_by = COALESCE(EXCLUDED.matched_by, training_session_completions.matched_by),
              notes = COALESCE(EXCLUDED.notes, training_session_completions.notes),
              skip_reason = COALESCE(EXCLUDED.skip_reason, training_session_completions.skip_reason),
              ai_review = COALESCE(EXCLUDED.ai_review, training_session_completions.ai_review)
@@ -813,6 +835,7 @@ async function upsertCompletion(
         completion.plan_session_id,
         completion.exercise_entry_id ?? null,
         completion.adherence_score ?? null,
+        completion.athlete_execution_score ?? null,
         completion.matched_by ?? null,
         completion.notes ?? null,
         completion.skip_reason ?? null,
@@ -820,6 +843,38 @@ async function upsertCompletion(
       ]
     );
     return mapCompletion(result.rows[0]);
+  } finally {
+    client.release();
+  }
+}
+
+async function getSessionWithCompletion(
+  userId: string,
+  sessionId: string
+): Promise<SessionWithCompletion | null> {
+  const client = await connect(userId);
+  try {
+    const result = await client.query<SessionWithCompletionRow>(
+      `SELECT s.id, s.plan_id,
+              to_char(s.scheduled_date, 'YYYY-MM-DD') AS scheduled_date,
+              s.session_type, s.status, s.prescription, s.skip_reason,
+              s.sort_order, s.created_at, s.updated_at,
+              c.id AS completion_id,
+              c.exercise_entry_id AS completion_exercise_entry_id,
+              c.adherence_score AS completion_adherence_score,
+              c.athlete_execution_score AS completion_athlete_execution_score,
+              c.matched_by AS completion_matched_by,
+              c.notes AS completion_notes,
+              c.skip_reason AS completion_skip_reason,
+              c.ai_review AS completion_ai_review,
+              c.created_at AS completion_created_at,
+              c.updated_at AS completion_updated_at
+       FROM training_plan_sessions s
+       LEFT JOIN training_session_completions c ON c.plan_session_id = s.id
+       WHERE s.id = $1 AND s.user_id = $2`,
+      [sessionId, userId]
+    );
+    return result.rows[0] ? mapSessionWithCompletion(result.rows[0]) : null;
   } finally {
     client.release();
   }
@@ -1137,6 +1192,7 @@ export {
   replaceSessions,
   updateSessionStatus,
   getSessionById,
+  getSessionWithCompletion,
   upsertCompletion,
   insertSnapshot,
   getLatestSnapshot,
@@ -1163,6 +1219,7 @@ export default {
   replaceSessions,
   updateSessionStatus,
   getSessionById,
+  getSessionWithCompletion,
   upsertCompletion,
   insertSnapshot,
   getLatestSnapshot,

@@ -7,8 +7,10 @@ import type {
   TrainingPlanAdjustRequest,
   TrainingPlanConfirmRequest,
   TrainingPlanCreateRequest,
+  TrainingPlanImportRequest,
   TrainingPlanProposeRequest,
   TrainingPlanUpdateRequest,
+  TrainingSessionReportExecutionRequest,
 } from '@workspace/shared';
 import { trainingPlanKeys } from '@/api/keys/training';
 import {
@@ -17,12 +19,15 @@ import {
   createAthleteSnapshot,
   createTrainingPlan,
   deleteTrainingPlan,
+  exportTrainingPlan,
   getLatestAthleteSnapshot,
   getTrainingCalendar,
   getTrainingPlan,
+  importTrainingPlan,
   listTrainingPlans,
   matchTrainingAdherence,
   proposeTrainingPlan,
+  reportTrainingSessionExecution,
   saveTrainingCommitments,
   saveTrainingGoals,
   skipTrainingSession,
@@ -60,6 +65,12 @@ interface SkipTrainingSessionVariables {
   planId: string;
   sessionId: string;
   reason: string;
+}
+
+interface ReportTrainingSessionExecutionVariables {
+  planId: string;
+  sessionId: string;
+  payload: TrainingSessionReportExecutionRequest;
 }
 
 export function useTrainingPlans() {
@@ -279,6 +290,57 @@ export function useSkipTrainingSessionMutation() {
       errorTitle: 'Could not skip session',
       errorMessage: 'Failed to mark this session as skipped.',
       successMessage: 'Session marked as skipped.',
+    },
+  });
+}
+
+export function useReportTrainingSessionExecutionMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      planId,
+      sessionId,
+      payload,
+    }: ReportTrainingSessionExecutionVariables) =>
+      reportTrainingSessionExecution(planId, sessionId, payload),
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: trainingPlanKeys.calendars(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: trainingPlanKeys.detail(variables.planId),
+      });
+    },
+    meta: {
+      errorTitle: 'Could not log execution',
+      errorMessage: 'Failed to save how this workout went.',
+      successMessage: 'Workout execution saved.',
+    },
+  });
+}
+
+export function useExportTrainingPlanMutation() {
+  return useMutation({
+    mutationFn: (planId: string) => exportTrainingPlan(planId),
+    meta: {
+      errorTitle: 'Could not export plan',
+      errorMessage: 'Failed to export the training plan JSON.',
+    },
+  });
+}
+
+export function useImportTrainingPlanMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: TrainingPlanImportRequest) =>
+      importTrainingPlan(payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: trainingPlanKeys.all });
+    },
+    meta: {
+      errorTitle: 'Could not import plan',
+      errorMessage: 'Failed to import the training plan JSON.',
+      successMessage: 'Training plan imported.',
     },
   });
 }

@@ -7,6 +7,7 @@ import {
   trainingGoalPayloadSchema,
   trainingPlanConfirmRequestSchema,
   trainingPlanCreateRequestSchema,
+  trainingPlanImportRequestSchema,
   trainingPlanProposeRequestSchema,
   trainingPlanUpdateRequestSchema,
 } from '@workspace/shared';
@@ -59,6 +60,48 @@ router.get(
       log(
         'error',
         `Unexpected error listing training plans for user ${req.userId}:`,
+        error
+      );
+      next(error);
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /training-plans/import:
+ *   post:
+ *     summary: Import a training plan from a versioned JSON document
+ *     tags: [TrainingPlans]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       201:
+ *         description: The imported plan detail.
+ *       400:
+ *         description: Invalid document.
+ */
+router.post(
+  '/import',
+  authenticate,
+  checkPermissionMiddleware('diary'),
+  async (req, res, next) => {
+    const validation = trainingPlanImportRequestSchema.safeParse(req.body);
+    if (!validation.success) {
+      return invalidRequest(res, validation.error.issues);
+    }
+    try {
+      const result = await trainingPlanService.importPlan(
+        activeUserId(req),
+        validation.data
+      );
+      return res.status(201).json(result);
+    } catch (error) {
+      const handled = respondWithDomainError(res, error);
+      if (handled) return handled;
+      log(
+        'error',
+        `Unexpected error importing a training plan for user ${req.userId}:`,
         error
       );
       next(error);
@@ -322,6 +365,43 @@ router.get(
       log(
         'error',
         `Unexpected error loading training plan ${req.params.id} for user ${req.userId}:`,
+        error
+      );
+      next(error);
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /training-plans/{id}/export:
+ *   get:
+ *     summary: Export a training plan as versioned JSON
+ *     tags: [TrainingPlans]
+ *     security:
+ *       - cookieAuth: []
+ */
+router.get(
+  '/:id/export',
+  authenticate,
+  checkPermissionMiddleware('diary'),
+  async (req, res, next) => {
+    const planId = planIdSchema.safeParse(req.params.id);
+    if (!planId.success) {
+      return invalidRequest(res, planId.error.issues);
+    }
+    try {
+      const document = await trainingPlanService.exportPlan(
+        activeUserId(req),
+        planId.data
+      );
+      return res.status(200).json(document);
+    } catch (error) {
+      const handled = respondWithDomainError(res, error);
+      if (handled) return handled;
+      log(
+        'error',
+        `Unexpected error exporting training plan ${req.params.id} for user ${req.userId}:`,
         error
       );
       next(error);
