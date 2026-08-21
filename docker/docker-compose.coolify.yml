@@ -1,6 +1,11 @@
 # Coolify / homeserver stack for this fork.
 # Builds production images from local Dockerfiles (does not pull codewithcj/*).
 # See docker/coolify_deployments.md for Coolify UI settings and env checklist.
+#
+# Coolify notes:
+# - Named volumes (not ${HOST_PATH:?...} binds) — Coolify rejects ${ in volume sources.
+# - image: beside build: so Coolify lists non-DB services for domain assignment.
+# - Frontend uses expose (not host ports) so Coolify's proxy owns HTTPS.
 
 services:
   sparkyfitness-db:
@@ -14,11 +19,12 @@ services:
       PUID: 1000
       GUID: 1000
     volumes:
-      - ${DB_PATH:?Variable is required and must be set}:/var/lib/postgresql
+      - sparkyfitness-db-data:/var/lib/postgresql
     networks:
       - sparkyfitness-network
 
   sparkyfitness-server:
+    image: sparkyfitness-server:local
     build:
       context: ..
       dockerfile: docker/Dockerfile.backend
@@ -54,17 +60,18 @@ services:
     depends_on:
       - sparkyfitness-db
     volumes:
-      - ${SERVER_BACKUP_PATH:?Variable is required and must be set}:/app/SparkyFitnessServer/backup
-      - ${SERVER_UPLOADS_PATH:?Variable is required and must be set}:/app/SparkyFitnessServer/uploads
+      - sparkyfitness-backup:/app/SparkyFitnessServer/backup
+      - sparkyfitness-uploads:/app/SparkyFitnessServer/uploads
 
   sparkyfitness-frontend:
+    image: sparkyfitness-frontend:local
     build:
       context: ..
       dockerfile: docker/Dockerfile.frontend
     container_name: sparkyfitness-frontend
     restart: always
-    ports:
-      - "${SPARKY_FITNESS_FRONTEND_PORT:-3004}:${NGINX_LISTEN_PORT:-80}"
+    expose:
+      - "80"
     environment:
       SPARKY_FITNESS_FRONTEND_URL: ${SPARKY_FITNESS_FRONTEND_URL:?Variable is required and must be set}
       SPARKY_FITNESS_SERVER_HOST: sparkyfitness-server
@@ -81,6 +88,7 @@ services:
       - sparkyfitness-garmin
 
   sparkyfitness-garmin:
+    image: sparkyfitness-garmin:local
     build:
       context: ..
       dockerfile: docker/Dockerfile.garmin_microservice
@@ -101,3 +109,8 @@ services:
 networks:
   sparkyfitness-network:
     driver: bridge
+
+volumes:
+  sparkyfitness-db-data:
+  sparkyfitness-backup:
+  sparkyfitness-uploads:
