@@ -54,7 +54,8 @@ services:
       SPARKY_FITNESS_DISABLE_SIGNUP: ${SPARKY_FITNESS_DISABLE_SIGNUP:-false}
       SPARKY_FITNESS_ADMIN_EMAIL: ${SPARKY_FITNESS_ADMIN_EMAIL:-}
       GARMIN_MICROSERVICE_URL: ${GARMIN_MICROSERVICE_URL:-http://sparkyfitness-garmin:8000}
-      NODE_ENV: ${NODE_ENV:-production}
+      # Hardcoded so Coolify does not treat NODE_ENV as a build-time ARG (breaks pnpm/vite).
+      NODE_ENV: "production"
       TZ: ${TZ:-Etc/UTC}
       SPARKY_FITNESS_FORCE_EMAIL_LOGIN: ${SPARKY_FITNESS_FORCE_EMAIL_LOGIN:-}
       DEV_TOOLS_ENABLED: ${DEV_TOOLS_ENABLED:-false}

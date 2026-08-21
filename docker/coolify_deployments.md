@@ -87,7 +87,7 @@ docker compose --project-directory . -f docker/docker-compose.coolify.yml config
 
 - **Paste only** keys from [`.env.coolify`](../.env.coolify). After a compose change, refresh the compose in Coolify, then delete leftover UI vars that are no longer in the file (`DB_PATH`, `SERVER_BACKUP_PATH`, `SERVER_UPLOADS_PATH`, `SPARKY_FITNESS_FRONTEND_PORT`, `SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS`, `NGINX_DUMP_CONFIG`, `NGINX_LISTEN_PORT`, …).
 - **Do not delete** Coolify magic vars `SERVICE_URL_*` / `SERVICE_FQDN_*` — Coolify creates these for each application service. They are not in our compose; the UI will refuse deletion while the service exists. Leave them alone.
-- Set `NODE_ENV` to **Runtime only** (uncheck “Available at Buildtime”) so Coolify does not skip `devDependencies` during image builds.
+- Set `NODE_ENV` to **Runtime only** (uncheck “Available at Buildtime”) so Coolify does not skip `devDependencies` during image builds. Prefer deleting `NODE_ENV` from the Coolify env UI entirely — the compose file hardcodes `NODE_ENV=production` at runtime, and the Dockerfiles force a full pnpm install in builder stages even if Coolify still passes `NODE_ENV=production` as a build ARG.
 ## Services in this stack
 
 | Service | Image source |

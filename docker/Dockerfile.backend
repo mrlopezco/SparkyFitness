@@ -19,8 +19,9 @@ COPY shared/package.json shared/
 # Copy patch files referenced by pnpm.patchedDependencies in root package.json
 COPY patches/ patches/
 
-# Install workspace dependencies
-RUN pnpm install --frozen-lockfile --filter sparkyfitnessserver...
+# Coolify may inject NODE_ENV=production as a build ARG/ENV (skips devDependencies).
+# Force a full install so workspace tooling is available for deploy.
+RUN NODE_ENV=development pnpm install --frozen-lockfile --prod=false --filter sparkyfitnessserver...
 
 # Copy server and shared source
 COPY SparkyFitnessServer/ SparkyFitnessServer/
