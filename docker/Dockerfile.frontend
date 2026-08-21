@@ -66,6 +66,12 @@ COPY shared/ ./shared/
 WORKDIR /app/SparkyFitnessFrontend
 RUN NODE_ENV=production pnpm exec vite build
 
+# Verify critical assets were built (fail fast if public/ folder wasn't copied)
+RUN test -f dist/index.html || (echo "ERROR: dist/index.html not found!" && exit 1)
+RUN test -d dist/locales/en || (echo "ERROR: dist/locales/en/ not found! Translations will fail." && exit 1)
+RUN test -f dist/locales/en/translation.json || (echo "ERROR: dist/locales/en/translation.json not found!" && exit 1)
+RUN echo "✓ Build verification passed: index.html and translations present"
+
 # Stage 2: Serve the application with Nginx
 FROM nginx:alpine3.22
 
