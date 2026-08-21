@@ -13,6 +13,8 @@ Coolify runs on your **Ubuntu homeserver**. Persistence uses Docker named volume
 | Docker Compose file | `docker/docker-compose.coolify.yml` |
 | Build | On deploy / on push (compose `build:` sections) |
 
+Build `context:` / `dockerfile:` paths are **relative to Base Directory (repo root)**. Coolify runs compose with `--project-directory` set to that root, so `context: ..` wrongly resolves to `/artifacts` and fails with `lstat /artifacts/docker: no such file or directory`. This compose uses `context: .` and `dockerfile: docker/Dockerfile.*`.
+
 Do not point Coolify at the upstream one-click SparkyFitness service if you want fork features; use this compose file instead.
 
 ## Environment checklist
@@ -75,12 +77,17 @@ openssl rand -hex 32
 2. Coolify rebuilds `sparkyfitness-server`, `sparkyfitness-frontend`, and `sparkyfitness-garmin` from this repo’s Dockerfiles, then recreates containers.
 3. After Dockerfile or dependency changes, force a rebuild in Coolify if auto-deploy did not pick up cache-busting (Redeploy / Rebuild without cache).
 
-Local dry-run of compose resolution (optional, from a machine with Docker):
+Local dry-run of compose resolution (optional; must use `--project-directory` like Coolify):
 
 ```powershell
-docker compose -f docker/docker-compose.coolify.yml config
+docker compose --project-directory . -f docker/docker-compose.coolify.yml config
 ```
 
+## Environment UI cleanup
+
+- **Paste only** keys from [`.env.coolify`](../.env.coolify). After a compose change, refresh the compose in Coolify, then delete leftover UI vars that are no longer in the file (`DB_PATH`, `SERVER_BACKUP_PATH`, `SERVER_UPLOADS_PATH`, `SPARKY_FITNESS_FRONTEND_PORT`, `SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS`, `NGINX_DUMP_CONFIG`, `NGINX_LISTEN_PORT`, …).
+- **Do not delete** Coolify magic vars `SERVICE_URL_*` / `SERVICE_FQDN_*` — Coolify creates these for each application service. They are not in our compose; the UI will refuse deletion while the service exists. Leave them alone.
+- Set `NODE_ENV` to **Runtime only** (uncheck “Available at Buildtime”) so Coolify does not skip `devDependencies` during image builds.
 ## Services in this stack
 
 | Service | Image source |
@@ -88,7 +95,7 @@ docker compose -f docker/docker-compose.coolify.yml config
 | `sparkyfitness-db` | `postgres:18.3-alpine` |
 | `sparkyfitness-server` | Build `docker/Dockerfile.backend` → tag `sparkyfitness-server:local` |
 | `sparkyfitness-frontend` | Build `docker/Dockerfile.frontend` → tag `sparkyfitness-frontend:local` |
-| `sparkyfitness-garmin` | Build `docker/Dockerfile.garmin_microservice` → tag `sparkyfitness-garmin:local` |
+| `sparkyfitness-garmin` | Build `docker/Dockerfile.garmin_microservice.dev` (repo-root context) → tag `sparkyfitness-garmin:local` |
 
 ## Pitfalls
 

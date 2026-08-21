@@ -3,11 +3,15 @@
 # See docker/coolify_deployments.md for Coolify UI settings and env checklist.
 #
 # Coolify notes:
+# - Build paths are relative to Coolify Base Directory (repo root), NOT the compose
+#   file directory. Use context: . — context: .. resolves to /artifacts and fails.
 # - Named volumes (not ${HOST_PATH} binds) — Coolify rejects ${ in volume sources.
 # - image: beside build: so Coolify lists non-DB services for domain assignment.
 # - Frontend uses expose (not host ports) so Coolify's proxy owns HTTPS.
 # - Only ${VAR} for knobs listed in .env.coolify. Do NOT add unused optional keys
 #   (even hardcoded) — Coolify locks any compose env key and blocks UI deletion.
+# - Leave SERVICE_URL_* / SERVICE_FQDN_* alone — Coolify injects those; they are not
+#   deletable while the service exists.
 
 services:
   sparkyfitness-db:
@@ -28,7 +32,7 @@ services:
   sparkyfitness-server:
     image: sparkyfitness-server:local
     build:
-      context: ..
+      context: .
       dockerfile: docker/Dockerfile.backend
     container_name: sparkyfitness-server
     restart: always
@@ -67,7 +71,7 @@ services:
   sparkyfitness-frontend:
     image: sparkyfitness-frontend:local
     build:
-      context: ..
+      context: .
       dockerfile: docker/Dockerfile.frontend
     container_name: sparkyfitness-frontend
     restart: always
@@ -88,9 +92,11 @@ services:
 
   sparkyfitness-garmin:
     image: sparkyfitness-garmin:local
+    # Repo-root context Dockerfile (COPY SparkyFitnessGarmin/...) — required because
+    # Coolify resolves build context from Base Directory, not from docker/.
     build:
-      context: ..
-      dockerfile: docker/Dockerfile.garmin_microservice
+      context: .
+      dockerfile: docker/Dockerfile.garmin_microservice.dev
     container_name: sparkyfitness-garmin
     restart: unless-stopped
     environment:
