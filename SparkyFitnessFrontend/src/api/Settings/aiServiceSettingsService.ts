@@ -59,7 +59,20 @@ export const getActiveAiServiceSetting =
         method: 'GET',
         suppress404Toast: true, // Suppress toast for 404
       });
-      return setting ? aiServiceSettingsResponseSchema.parse(setting) : null;
+      if (!setting) {
+        return null;
+      }
+      const parsed = aiServiceSettingsResponseSchema.safeParse(setting);
+      if (!parsed.success) {
+        // Don't treat a malformed payload as "no service" without a signal —
+        // callers still get null, but the list endpoint can fall back.
+        console.warn(
+          'Active AI service response failed schema validation:',
+          parsed.error.issues
+        );
+        return null;
+      }
+      return parsed.data;
     } catch (err: unknown) {
       const message = getErrorMessage(err);
       if (message && message.includes('404')) {

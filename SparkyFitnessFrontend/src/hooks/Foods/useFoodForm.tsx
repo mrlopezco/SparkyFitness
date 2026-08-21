@@ -1005,6 +1005,147 @@ export function useCustomFoodForm({
     );
   };
 
+  /**
+   * Fill name/brand and the default variant from an AI + DB food draft
+   * (custom-food "describe with AI" flow). Does not save — user still reviews.
+   */
+  const applyAiFoodDraft = useCallback(
+    (draft: {
+      name: string;
+      brand?: string | null;
+      serving_size: number;
+      serving_unit: string;
+      nutrients: {
+        calories?: number | null;
+        protein?: number | null;
+        carbs?: number | null;
+        fat?: number | null;
+        saturated_fat?: number | null;
+        polyunsaturated_fat?: number | null;
+        monounsaturated_fat?: number | null;
+        trans_fat?: number | null;
+        cholesterol?: number | null;
+        sodium?: number | null;
+        potassium?: number | null;
+        dietary_fiber?: number | null;
+        sugars?: number | null;
+        vitamin_a?: number | null;
+        vitamin_c?: number | null;
+        calcium?: number | null;
+        iron?: number | null;
+      };
+      source: 'ai_estimate' | 'imported';
+    }) => {
+      const toNum = (value: number | null | undefined): number | undefined => {
+        if (value === null || value === undefined) return undefined;
+        const n = Number(value);
+        return Number.isFinite(n) ? n : undefined;
+      };
+
+      setFormData((prev) => ({
+        ...prev,
+        name: draft.name,
+        brand: draft.brand?.trim() ? draft.brand : '',
+      }));
+
+      const patchDefault = (
+        list: GroupedFormFoodVariant[]
+      ): GroupedFormFoodVariant[] => {
+        if (list.length === 0) {
+          const created = createDefaultFormVariant(customNutrients, {
+            serving_size: draft.serving_size,
+            serving_unit: draft.serving_unit,
+            calories: toNum(draft.nutrients.calories),
+            protein: toNum(draft.nutrients.protein),
+            carbs: toNum(draft.nutrients.carbs),
+            fat: toNum(draft.nutrients.fat),
+            saturated_fat: toNum(draft.nutrients.saturated_fat),
+            polyunsaturated_fat: toNum(draft.nutrients.polyunsaturated_fat),
+            monounsaturated_fat: toNum(draft.nutrients.monounsaturated_fat),
+            trans_fat: toNum(draft.nutrients.trans_fat),
+            cholesterol: toNum(draft.nutrients.cholesterol),
+            sodium: toNum(draft.nutrients.sodium),
+            potassium: toNum(draft.nutrients.potassium),
+            dietary_fiber: toNum(draft.nutrients.dietary_fiber),
+            sugars: toNum(draft.nutrients.sugars),
+            vitamin_a: toNum(draft.nutrients.vitamin_a),
+            vitamin_c: toNum(draft.nutrients.vitamin_c),
+            calcium: toNum(draft.nutrients.calcium),
+            iron: toNum(draft.nutrients.iron),
+            source: draft.source,
+            ai_confidence: draft.source === 'ai_estimate' ? 'medium' : null,
+          });
+          return [{ ...created, equivalents: [] }];
+        }
+
+        const next = [...list];
+        const defaultIndex = next.findIndex((v) => v.is_default);
+        const index = defaultIndex >= 0 ? defaultIndex : 0;
+        const current = next[index];
+        next[index] = {
+          ...current,
+          serving_size: draft.serving_size,
+          serving_unit: draft.serving_unit,
+          calories: toNum(draft.nutrients.calories),
+          protein: toNum(draft.nutrients.protein),
+          carbs: toNum(draft.nutrients.carbs),
+          fat: toNum(draft.nutrients.fat),
+          saturated_fat: toNum(draft.nutrients.saturated_fat),
+          polyunsaturated_fat: toNum(draft.nutrients.polyunsaturated_fat),
+          monounsaturated_fat: toNum(draft.nutrients.monounsaturated_fat),
+          trans_fat: toNum(draft.nutrients.trans_fat),
+          cholesterol: toNum(draft.nutrients.cholesterol),
+          sodium: toNum(draft.nutrients.sodium),
+          potassium: toNum(draft.nutrients.potassium),
+          dietary_fiber: toNum(draft.nutrients.dietary_fiber),
+          sugars: toNum(draft.nutrients.sugars),
+          vitamin_a: toNum(draft.nutrients.vitamin_a),
+          vitamin_c: toNum(draft.nutrients.vitamin_c),
+          calcium: toNum(draft.nutrients.calcium),
+          iron: toNum(draft.nutrients.iron),
+          source: draft.source,
+          ai_confidence: draft.source === 'ai_estimate' ? 'medium' : null,
+          is_default: true,
+        };
+        return next;
+      };
+
+      setVariants((prev) => {
+        const next = patchDefault(prev);
+        const defaultIndex = next.findIndex((v) => v.is_default);
+        const index = defaultIndex >= 0 ? defaultIndex : 0;
+        setVariantMeta((prevMeta) => {
+          if (prevMeta.length === 0) {
+            return [
+              {
+                ...DEFAULT_VARIANT_META,
+                aiEstimatedUnit:
+                  draft.source === 'ai_estimate' ? draft.serving_unit : null,
+                hasTrustedCompatibilityBase: draft.source !== 'ai_estimate',
+              },
+            ];
+          }
+          return prevMeta.map((meta, i) =>
+            i === index
+              ? {
+                  ...meta,
+                  error: '',
+                  manualUnitConversionPending: false,
+                  aiEstimatedUnit:
+                    draft.source === 'ai_estimate' ? draft.serving_unit : null,
+                  hasTrustedCompatibilityBase: draft.source !== 'ai_estimate',
+                }
+              : meta
+          );
+        });
+        return next;
+      });
+      setOriginalVariants((prev) => patchDefault(prev));
+      setServingSizeScalingBaseVariants((prev) => patchDefault(prev));
+    },
+    [customNutrients]
+  );
+
   // Apply an AI-estimated conversion to a row. Anchor is always the food's
   // default variant (so AI estimates don't compound on prior AI values); when
   // the row IS the default, fall back to originalVariants[default] (the
@@ -1322,6 +1463,7 @@ export function useCustomFoodForm({
     updateVariant,
     applyProviderNutrientMatch,
     applyAiEstimate,
+    applyAiFoodDraft,
     handleSubmit,
     handleSyncConfirmation,
     imageItems,

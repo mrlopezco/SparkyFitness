@@ -19,9 +19,12 @@ import {
   ClipboardCopy,
   PlusCircle,
   Users,
+  Sparkles,
 } from 'lucide-react';
 import { useState } from 'react';
 import EnhancedFoodSearch from '../../components/FoodSearch/FoodSearch';
+import AiMealLogDialog from './AiMealLogDialog';
+import { AI_BUTTON_CLASS } from '@/components/ai/aiAccent';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { debug } from '@/utils/logging';
@@ -82,6 +85,7 @@ interface MealCardProps {
     targetCalories?: number;
     selectedDate: string;
   };
+  mealTypeId?: string;
   totals: MealTotals;
   selectedDate: string;
   onFoodSelect: (item: Food | Meal, mealType: string) => void;
@@ -107,6 +111,7 @@ interface MealCardProps {
 
 const MealCard = ({
   meal,
+  mealTypeId,
   totals,
   onFoodSelect,
   onEditEntry,
@@ -135,6 +140,7 @@ const MealCard = ({
   const selectedDateRelation = getDateRelationToToday(selectedDate);
 
   const [internalFoodSearchOpen, setInternalFoodSearchOpen] = useState(false);
+  const [isAiMealLogOpen, setIsAiMealLogOpen] = useState(false);
   // One viewer for the whole card; the clicked row supplies its own images.
   const { lightboxProps, openLightbox } = useImageLightbox();
 
@@ -325,6 +331,20 @@ const MealCard = ({
                   />
                 </DialogContent>
               </Dialog>
+              <Button
+                size="default"
+                onClick={() => {
+                  debug(
+                    loggingLevel,
+                    `MealCard: Quick AI Meal Log clicked for ${meal.name}.`
+                  );
+                  setIsAiMealLogOpen(true);
+                }}
+                title={t('mealCard.quickAiMealLog', 'Quick AI Meal Log')}
+                className={AI_BUTTON_CLASS}
+              >
+                <Sparkles className="w-4 h-4" />
+              </Button>
               {/* Existing clock icon would go here if it were part of this component */}
               <Button
                 size="default"
@@ -818,6 +838,13 @@ const MealCard = ({
           </DialogContent>
         </Dialog>
       )}
+      <AiMealLogDialog
+        isOpen={isAiMealLogOpen}
+        onClose={() => setIsAiMealLogOpen(false)}
+        mealType={meal.type}
+        mealTypeId={mealTypeId}
+        selectedDate={selectedDate}
+      />
       <ImageLightbox {...lightboxProps} />
     </>
   );

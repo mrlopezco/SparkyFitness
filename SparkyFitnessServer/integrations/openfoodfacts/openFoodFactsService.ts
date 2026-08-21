@@ -16,6 +16,20 @@ const USER_AGENT = `${name}/${version} (https://github.com/CodeWithCJ/SparkyFitn
 const OFF_HEADERS = {
   'User-Agent': USER_AGENT,
 };
+
+/** Keep error logs readable when OFF returns an HTML 503/rate-limit page. */
+function summarizeOffErrorBody(status: number, body: string): string {
+  const trimmed = body.trim();
+  const looksLikeHtml =
+    trimmed.startsWith('<!') ||
+    trimmed.toLowerCase().includes('<html') ||
+    trimmed.length > 800;
+  if (looksLikeHtml) {
+    return `HTTP ${status} (non-JSON/HTML error body, ${trimmed.length} chars)`;
+  }
+  return `HTTP ${status}: ${trimmed.slice(0, 400)}`;
+}
+
 const OFF_FIELDS = [
   'product_name',
   'product_name_en',
@@ -151,8 +165,9 @@ async function searchOpenFoodFacts(
     });
     if (!response.ok) {
       const errorText = await response.text();
-      log('error', 'OpenFoodFacts Search API error:', errorText);
-      throw new Error(`OpenFoodFacts API error: ${errorText}`);
+      const summary = summarizeOffErrorBody(response.status, errorText);
+      log('error', 'OpenFoodFacts Search API error:', summary);
+      throw new Error(`OpenFoodFacts API error: ${summary}`);
     }
     const data = (await response.json()) as OffSearchResponse;
     return {
@@ -212,8 +227,9 @@ async function searchOpenFoodFactsByBarcodeFields(
         return { status: 0, status_verbose: 'product not found' };
       }
       const errorText = await response.text();
-      log('error', 'OpenFoodFacts Barcode Fields Search API error:', errorText);
-      throw new Error(`OpenFoodFacts API error: ${errorText}`);
+      const summary = summarizeOffErrorBody(response.status, errorText);
+      log('error', 'OpenFoodFacts Barcode Fields Search API error:', summary);
+      throw new Error(`OpenFoodFacts API error: ${summary}`);
     }
     let data = (await response.json()) as {
       status: number;
