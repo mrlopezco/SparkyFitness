@@ -95,6 +95,6 @@ docker compose -f docker/docker-compose.coolify.yml config
 - **Do not swap back to Hub images** (`codewithcj/*`) or fork changes will not ship.
 - **Do not rotate** `SPARKY_FITNESS_API_ENCRYPTION_KEY` or `BETTER_AUTH_SECRET` after production data / 2FA exists unless you accept lockouts and re-linking providers.
 - **Do not use `${VAR:?…}` (or any `${…}`) in volume sources** — Coolify’s injection validator rejects them. Use the named volumes in this compose file.
-- **Coolify cannot delete an env var that still appears as `${VAR}` in the compose.** Optional unused knobs (`SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS`, `NGINX_DUMP_CONFIG`, `NGINX_LISTEN_PORT`) are hardcoded in `docker-compose.coolify.yml` so they do not clutter the Coolify env UI.
+- **Coolify cannot delete an env var while its name still appears in the compose `environment:` block** (as `${VAR}` *or* a hardcoded key). Optional unused knobs (`SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS`, `NGINX_DUMP_CONFIG`, `NGINX_LISTEN_PORT`, …) are **omitted** from `docker-compose.coolify.yml`. Only paste vars from [`.env.coolify`](../.env.coolify). After removing a key from compose, refresh/re-save the compose in Coolify, then delete the leftover UI entry.
 - Garmin depends on DB + server; if the API cannot reach Garmin, check `GARMIN_MICROSERVICE_URL` (default `http://sparkyfitness-garmin:8000`) and container logs.
 - `SPARKY_FITNESS_FRONTEND_URL` must match the browser origin (scheme + host + port) or auth/CORS will fail.

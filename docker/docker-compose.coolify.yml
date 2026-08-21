@@ -3,9 +3,11 @@
 # See docker/coolify_deployments.md for Coolify UI settings and env checklist.
 #
 # Coolify notes:
-# - Named volumes (not ${HOST_PATH:?...} binds) — Coolify rejects ${ in volume sources.
+# - Named volumes (not ${HOST_PATH} binds) — Coolify rejects ${ in volume sources.
 # - image: beside build: so Coolify lists non-DB services for domain assignment.
 # - Frontend uses expose (not host ports) so Coolify's proxy owns HTTPS.
+# - Only ${VAR} for knobs listed in .env.coolify. Do NOT add unused optional keys
+#   (even hardcoded) — Coolify locks any compose env key and blocks UI deletion.
 
 services:
   sparkyfitness-db:
@@ -34,8 +36,6 @@ services:
       SPARKY_FITNESS_LOG_LEVEL: ${SPARKY_FITNESS_LOG_LEVEL:-ERROR}
       ALLOW_PRIVATE_NETWORK_CORS: ${ALLOW_PRIVATE_NETWORK_CORS:-false}
       ALLOW_PRIVATE_NETWORK_AI: ${ALLOW_PRIVATE_NETWORK_AI:-false}
-      # Hardcoded empty — Coolify forbids deleting env vars still referenced as ${VAR}
-      SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS: ""
       SPARKY_FITNESS_PUBLIC_API_DOCS: ${SPARKY_FITNESS_PUBLIC_API_DOCS:-false}
       SPARKY_FITNESS_DB_USER: ${SPARKY_FITNESS_DB_USER:-sparky}
       SPARKY_FITNESS_DB_HOST: sparkyfitness-db
@@ -49,7 +49,7 @@ services:
       SPARKY_FITNESS_FRONTEND_URL: ${SPARKY_FITNESS_FRONTEND_URL:?Variable is required and must be set}
       SPARKY_FITNESS_DISABLE_SIGNUP: ${SPARKY_FITNESS_DISABLE_SIGNUP:-false}
       SPARKY_FITNESS_ADMIN_EMAIL: ${SPARKY_FITNESS_ADMIN_EMAIL:-}
-      GARMIN_MICROSERVICE_URL: ${GARMIN_MICROSERVICE_URL:-http://sparkyfitness-garmin:${GARMIN_SERVICE_PORT:-8000}}
+      GARMIN_MICROSERVICE_URL: ${GARMIN_MICROSERVICE_URL:-http://sparkyfitness-garmin:8000}
       NODE_ENV: ${NODE_ENV:-production}
       TZ: ${TZ:-Etc/UTC}
       SPARKY_FITNESS_FORCE_EMAIL_LOGIN: ${SPARKY_FITNESS_FORCE_EMAIL_LOGIN:-}
@@ -78,9 +78,6 @@ services:
       SPARKY_FITNESS_SERVER_HOST: sparkyfitness-server
       SPARKY_FITNESS_SERVER_PORT: 3010
       NGINX_RATE_LIMIT: ${NGINX_RATE_LIMIT:-5r/s}
-      # Hardcoded — Coolify forbids deleting env vars still referenced as ${VAR}
-      NGINX_LISTEN_PORT: ""
-      NGINX_DUMP_CONFIG: "false"
       PUID: 1000
       GUID: 1000
     networks:
@@ -97,7 +94,7 @@ services:
     container_name: sparkyfitness-garmin
     restart: unless-stopped
     environment:
-      GARMIN_MICROSERVICE_URL: ${GARMIN_MICROSERVICE_URL:-http://sparkyfitness-garmin:${GARMIN_SERVICE_PORT:-8000}}
+      GARMIN_MICROSERVICE_URL: ${GARMIN_MICROSERVICE_URL:-http://sparkyfitness-garmin:8000}
       GARMIN_SERVICE_PORT: ${GARMIN_SERVICE_PORT:-8000}
       GARMIN_SERVICE_IS_CN: ${GARMIN_SERVICE_IS_CN:-false}
       PUID: 1000
