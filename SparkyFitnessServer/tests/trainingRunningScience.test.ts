@@ -85,11 +85,13 @@ describe('derivePacesFromRacePredictions', () => {
   it('echoes back only the predictions the watch actually published', () => {
     const paces = derivePacesFromRacePredictions({
       race_prediction_10k_seconds: FORTY_ONE_FORTY_10K,
+      race_prediction_marathon_seconds: 11400,
     });
 
     expect(paces.race_prediction_5k_seconds).toBeNull();
     expect(paces.race_prediction_10k_seconds).toBe(FORTY_ONE_FORTY_10K);
     expect(paces.race_prediction_half_marathon_seconds).toBeNull();
+    expect(paces.race_prediction_marathon_seconds).toBe(11400);
   });
 
   it('fills a missing 5K by projecting from the 10K', () => {

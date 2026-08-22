@@ -55,6 +55,15 @@ describe('classifyActivitySport — provider-declared', () => {
     ).toEqual({ sport: 'cycling', confidence: 'declared' });
   });
 
+  it('treats garmin_health_data like garmin for declared sport', () => {
+    expect(
+      classifyActivitySport({
+        providerName: 'garmin_health_data',
+        detailData: { activityType: { typeKey: 'running' } },
+      })
+    ).toEqual({ sport: 'running', confidence: 'declared' });
+  });
+
   it('trusts the Strava sport_type over a user-written activity title', () => {
     // Strava exercise_name is a free-text title the athlete chose, so keyword
     // matching on it is exactly what must NOT decide the sport.

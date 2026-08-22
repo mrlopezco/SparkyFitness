@@ -120,7 +120,11 @@ BEGIN
     'training_coach_messages',
     'training_coach_session_summaries',
     'training_coach_memories',
-    'training_fitness_tests'
+    'training_fitness_tests',
+    'ghd_sync_runs',
+    'ghd_activity_map',
+    'ghd_history_import_jobs',
+    'ghd_history_import_weeks'
   ]::text[])
   LOOP
     EXECUTE 'ALTER TABLE public.' || quote_ident(table_name) || ' ENABLE ROW LEVEL SECURITY;';
@@ -655,6 +659,14 @@ SELECT create_owner_policy('user_medication_display_preferences');
 
 -- Fork: module visibility toggles (nav/route gating). Tier 1 — owner-only.
 SELECT create_owner_policy('user_module_preferences');
+
+-- Fork: Garmin Health Data sync/history metadata (migration
+-- 20260821220000_garmin_health_data_provider.sql). Tier 1 — owner-only;
+-- same privacy posture as other wearable sync credentials/metadata.
+SELECT create_owner_policy('ghd_sync_runs');
+SELECT create_owner_policy('ghd_activity_map');
+SELECT create_owner_policy('ghd_history_import_jobs');
+SELECT create_owner_policy('ghd_history_import_weeks');
 
 -- Cycle & Pregnancy hub (see migration 20260702180000_add_cycle_tracking_schema.sql).
 -- Tier 1 — owner-only. Deliberately stricter than medications: this reproductive

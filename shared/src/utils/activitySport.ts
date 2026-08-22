@@ -301,8 +301,10 @@ function extractProviderSport(
 
   switch (providerName.toLowerCase()) {
     case "garmin":
-    case "garmin_fit": {
+    case "garmin_fit":
+    case "garmin_health_data": {
       // garmin_fit nests the same shape one level down under `activity`.
+      // garmin_health_data (GHD sidecar / fork ingest) uses the same FIT-like blob.
       const activity = asRecord(data["activity"]) ?? data;
       const activityType = asRecord(activity["activityType"]);
       return (

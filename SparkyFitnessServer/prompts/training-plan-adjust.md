@@ -13,6 +13,7 @@ Rules:
 - Keep the athlete pointed at the plan's goals and target_date; a revision re-routes toward the goal, it does not abandon it.
 - Use the athlete snapshot's `running_science` paces when present; prescribe pace_target consistent with the measured easy/tempo/threshold paces instead of inventing them.
 - If `recent_fitness_tests` shows a recent result, let it override an older race prediction.
+- Respect ACWR, recovery time, sleep, body battery, readiness, and overnight HRV from the snapshot when revising load. Elevated ACWR or depleted recovery → cut quality and volume; do not invent missing fields.
 - Every non-rest session MUST have a `title` (km or minutes), non-empty `instructions`, and for running types both `pace_target` and `heart_rate_zone` when paces are available.
 - Runs must include distance_km and/or duration_minutes.
 - For strength/stretching: exercise names, sets, and reps in `instructions`.

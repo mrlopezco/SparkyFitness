@@ -7,10 +7,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { Trash2, Edit, Lock, RefreshCw, Link2Off } from 'lucide-react';
+import { Trash2, Edit, Lock, RefreshCw, Link2Off, History, Info } from 'lucide-react';
 import { decodeYazioAppId } from '@/utils/settings';
 import { useExternalProviderTypesQuery } from '@/hooks/Settings/useExternalProviderSettings';
 import SyncRangeDialog from './SyncRangeDialog';
+import GhdHistoryImportDialog from './GhdHistoryImportDialog';
+import GhdHistoryImportProgress from './GhdHistoryImportProgress';
+import WearableCoverageDialog from './WearableCoverageDialog';
+import { useTranslation } from 'react-i18next';
 
 import {
   useConnectFitbitMutation,
@@ -35,6 +39,11 @@ import {
   useManualSyncStravaMutation,
   useSyncHevyMutation,
 } from '@/hooks/Integrations/useIntegrations';
+import {
+  useDisconnectGarminHealthDataMutation,
+  useManualSyncGarminHealthDataMutation,
+} from '@/hooks/Integrations/useGarminHealthData';
+import { useGhdHistoryImport } from '@/hooks/Integrations/useGhdHistoryImport';
 import {
   useDeleteExternalProviderMutation,
   useToggleProviderStatusMutation,
@@ -74,6 +83,10 @@ const PROVIDER_PORTALS: Record<string, { label: string; url: string }> = {
     url: 'https://flow.polar.com/settings/applications',
   },
   garmin: { label: 'Garmin Connect', url: 'https://connect.garmin.com/' },
+  garmin_health_data: {
+    label: 'Garmin Connect',
+    url: 'https://connect.garmin.com/',
+  },
   nutritionix: {
     label: 'Nutritionix Console',
     url: 'https://developer.nutritionix.com/',
@@ -102,6 +115,7 @@ export const ProviderCard = ({
   startEditing,
   isAdminMode = false,
 }: ProviderCardProps) => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { data: providerTypes } = useExternalProviderTypesQuery();
   const yazioDisplay = decodeYazioAppId(provider.app_id);
@@ -112,6 +126,10 @@ export const ProviderCard = ({
     setDefaultBarcodeProviderId,
     saveAllPreferences,
   } = usePreferences();
+
+  const isGhd = provider.provider_type === 'garmin_health_data';
+  const isClassicGarmin = provider.provider_type === 'garmin';
+  const supportsCoverage = isGhd || isClassicGarmin;
 
   const { mutate: handleConnectFitbit, isPending: isConnectFitbitPending } =
     useConnectFitbitMutation();
@@ -142,6 +160,10 @@ export const ProviderCard = ({
     mutate: handleDisconnectGarmin,
     isPending: isDisconnectGarminPending,
   } = useDisconnectGarminMutation();
+  const {
+    mutate: handleDisconnectGhd,
+    isPending: isDisconnectGhdPending,
+  } = useDisconnectGarminHealthDataMutation();
   const { mutate: handleDisconnectPolar, isPending: isDisconnectPolarPending } =
     useDisconnectPolarMutation();
   const {
@@ -161,6 +183,10 @@ export const ProviderCard = ({
     useManualSyncOuraMutation();
   const { mutate: handleManualSyncGarmin, isPending: isSyncGarminPending } =
     useManualSyncGarminMutation();
+  const {
+    mutate: handleManualSyncGhd,
+    isPending: isSyncGhdPending,
+  } = useManualSyncGarminHealthDataMutation();
   const { mutate: handleManualSyncPolar, isPending: isSyncPolarPending } =
     useManualSyncPolarMutation();
   const { mutate: handleManualSyncStrava, isPending: isSyncStravaPending } =
@@ -173,6 +199,10 @@ export const ProviderCard = ({
     useSyncHevyMutation();
 
   const [isSyncDialogOpen, setIsSyncDialogOpen] = useState(false);
+  const [isGhdHistoryDialogOpen, setIsGhdHistoryDialogOpen] = useState(false);
+  const [isCoverageDialogOpen, setIsCoverageDialogOpen] = useState(false);
+
+  const { data: ghdHistoryJob } = useGhdHistoryImport(isGhd && !!provider.id);
 
   const { mutateAsync: toggleProviderActiveStatus, isPending: statusPending } =
     useToggleProviderStatusMutation();
@@ -202,6 +232,9 @@ export const ProviderCard = ({
         break;
       case 'garmin':
         handleManualSyncGarmin({ startDate, endDate });
+        break;
+      case 'garmin_health_data':
+        handleManualSyncGhd({ startDate, endDate });
         break;
       case 'googlehealth':
         handleManualSyncGoogleHealth({ startDate, endDate });
@@ -233,6 +266,7 @@ export const ProviderCard = ({
     isDisconnectOuraPending ||
     isDisconnectGoogleHealthPending ||
     isDisconnectGarminPending ||
+    isDisconnectGhdPending ||
     isDisconnectPolarPending ||
     isDisconnectStravaPending ||
     isDisconnectWithingsPending ||
@@ -240,6 +274,7 @@ export const ProviderCard = ({
     isSyncFitbitPending ||
     isSyncOuraPending ||
     isSyncGarminPending ||
+    isSyncGhdPending ||
     isSyncGoogleHealthPending ||
     isSyncPolarPending ||
     isSyncStravaPending ||
@@ -385,6 +420,15 @@ export const ProviderCard = ({
           tokenExpires: provider.garmin_token_expires,
           hasToken: isLinked && provider.is_active,
         };
+      case 'garmin_health_data':
+        return {
+          connect: null,
+          disconnect: () => handleDisconnectGhd(),
+          sync: () => setIsSyncDialogOpen(true),
+          lastSync: provider.garmin_last_status_check,
+          tokenExpires: provider.garmin_token_expires,
+          hasToken: isLinked && provider.is_active,
+        };
       case 'hevy':
         return {
           connect: null,
@@ -421,17 +465,47 @@ export const ProviderCard = ({
         </div>
         <div className="flex items-center gap-2">
           {config?.hasToken ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={config.sync}
-              disabled={loading}
-              title="Manual Sync"
-            >
-              <RefreshCw
-                className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`}
-              />
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={config.sync}
+                disabled={loading}
+                title={t('integrations.manualSync', 'Manual Sync')}
+              >
+                <RefreshCw
+                  className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`}
+                />
+              </Button>
+              {supportsCoverage && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsCoverageDialogOpen(true)}
+                  disabled={loading}
+                  title={t(
+                    'integrations.ghdCoverage.open',
+                    'Imported data coverage'
+                  )}
+                >
+                  <Info className="h-4 w-4" />
+                </Button>
+              )}
+              {isGhd && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsGhdHistoryDialogOpen(true)}
+                  disabled={loading}
+                  title={t(
+                    'integrations.ghdHistoryImport.fillGaps',
+                    'Fill history gaps'
+                  )}
+                >
+                  <History className="h-4 w-4" />
+                </Button>
+              )}
+            </>
           ) : config?.connect ? (
             <Button
               variant="outline"
@@ -605,6 +679,27 @@ export const ProviderCard = ({
           );
         })()}
 
+        {isGhd && (
+          <p className="text-xs text-muted-foreground mt-1.5 max-w-2xl leading-relaxed">
+            {t(
+              'integrations.ghdCardHelp',
+              'Deep wellness and FIT activity archive for Training. Use Fill history gaps once for multi-year backfill, then set sync frequency to daily. Keep classic Garmin for nutrition if needed.'
+            )}
+          </p>
+        )}
+
+        {isGhd &&
+          config?.hasToken &&
+          provider.sync_frequency === 'manual' &&
+          ghdHistoryJob?.status === 'completed' && (
+            <p className="text-xs text-amber-700 dark:text-amber-300 mt-1.5">
+              {t(
+                'integrations.ghdSetDailyNudge',
+                'History gap fill is complete. Edit this provider and set sync to daily so Training stays current.'
+              )}
+            </p>
+          )}
+
         {config?.hasToken && (config.lastSync || config.tokenExpires) && (
           <div className="text-sm text-muted-foreground">
             {config.lastSync && (
@@ -627,6 +722,10 @@ export const ProviderCard = ({
           </p>
         )}
       </div>
+
+      {isGhd && ghdHistoryJob?.status && (
+        <GhdHistoryImportProgress job={ghdHistoryJob} />
+      )}
 
       {[
         'fitbit',
@@ -687,6 +786,21 @@ export const ProviderCard = ({
         onSync={executeSync}
         providerType={provider.provider_type}
       />
+
+      {isGhd && (
+        <GhdHistoryImportDialog
+          isOpen={isGhdHistoryDialogOpen}
+          onClose={() => setIsGhdHistoryDialogOpen(false)}
+        />
+      )}
+
+      {supportsCoverage && (
+        <WearableCoverageDialog
+          isOpen={isCoverageDialogOpen}
+          onClose={() => setIsCoverageDialogOpen(false)}
+          source={isGhd ? 'garmin_health_data' : 'garmin'}
+        />
+      )}
     </div>
   );
 };

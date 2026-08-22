@@ -15,6 +15,7 @@ import { Database } from 'lucide-react';
 import AddExternalProviderForm from './AddExternalProviderForm';
 import ExternalProviderList from './ExternalProviderList';
 import GarminConnectSettings from './GarminConnectSettings';
+import GarminHealthDataConnectForm from './GarminHealthDataConnectForm';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { useExternalProviders } from '@/hooks/Settings/useExternalProviderSettings';
 import { useAuth } from '@/hooks/useAuth';
@@ -43,6 +44,9 @@ export interface ExternalDataProvider {
   garmin_connect_status?: 'linked' | 'connected' | 'disconnected';
   garmin_last_status_check?: string | null;
   garmin_token_expires?: string | null;
+  /** Form-only draft fields for garmin_health_data (DB required_fields). */
+  email?: string | null;
+  password?: string | null;
   withings_last_sync_at?: string | null;
   withings_token_expires?: string | null;
   fitbit_last_sync_at?: string | null;
@@ -67,6 +71,10 @@ const ExternalProviderSettings = () => {
     useState(false);
   const [garminClientStateFromAddForm, setGarminClientStateFromAddForm] =
     useState<string | null>(null);
+  const [showGhdMfaFromAddForm, setShowGhdMfaFromAddForm] = useState(false);
+  const [ghdMfaIdFromAddForm, setGhdMfaIdFromAddForm] = useState<string | null>(
+    null
+  );
   const { user } = useAuth();
   const {
     defaultFoodDataProviderId,
@@ -95,6 +103,11 @@ const ExternalProviderSettings = () => {
     setGarminClientStateFromAddForm(clientState);
   };
 
+  const handleGhdMfaRequiredFromAddForm = (mfaId: string) => {
+    setShowGhdMfaFromAddForm(true);
+    setGhdMfaIdFromAddForm(mfaId);
+  };
+
   return (
     <>
       <Separator />
@@ -115,6 +128,7 @@ const ExternalProviderSettings = () => {
               setShowAddForm={setShowAddForm}
               onAddSuccess={handleAddProviderSuccess}
               onGarminMfaRequired={handleGarminMfaRequiredFromAddForm}
+              onGhdMfaRequired={handleGhdMfaRequiredFromAddForm}
             />
 
             {showGarminMfaInputFromAddForm && garminClientStateFromAddForm && (
@@ -124,6 +138,17 @@ const ExternalProviderSettings = () => {
                 onMfaComplete={() => {
                   setShowGarminMfaInputFromAddForm(false);
                   setGarminClientStateFromAddForm(null);
+                }}
+              />
+            )}
+
+            {showGhdMfaFromAddForm && ghdMfaIdFromAddForm && (
+              <GarminHealthDataConnectForm
+                key={ghdMfaIdFromAddForm}
+                initialMfaId={ghdMfaIdFromAddForm}
+                onMfaComplete={() => {
+                  setShowGhdMfaFromAddForm(false);
+                  setGhdMfaIdFromAddForm(null);
                 }}
               />
             )}

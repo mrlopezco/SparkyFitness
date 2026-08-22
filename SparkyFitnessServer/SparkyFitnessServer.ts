@@ -51,6 +51,7 @@ import healthRoutes from './routes/healthRoutes.js';
 import externalProviderRoutes from './routes/externalProviderRoutes.js';
 import syncedDataRoutes from './routes/syncedDataRoutes.js';
 import garminRoutes from './routes/garminRoutes.js';
+import garminHealthDataRoutes from './routes/garminHealthDataRoutes.js';
 import withingsRoutes from './routes/withingsRoutes.js';
 import withingsDataRoutes from './routes/withingsDataRoutes.js';
 import fitbitRoutes from './routes/fitbitRoutes.js';
@@ -90,6 +91,9 @@ import { scheduleBackupsOnStartup } from './services/backupScheduler.js';
 import externalProviderRepository from './models/externalProviderRepository.js';
 import garminService from './services/garminService.js';
 import { getGarminSyncPhaseErrors } from './services/garminSyncResult.js';
+import garminHealthDataService from './services/garminHealthDataService.js';
+import ghdHistoryImportService from './services/ghdHistoryImportService.js';
+import ghdHistoryImportRepository from './models/ghdHistoryImportRepository.js';
 import fitbitService from './services/fitbitService.js';
 import ouraService from './services/ouraService.js';
 import googleHealthService from './services/googleHealthService.js';
@@ -534,6 +538,7 @@ app.use('/api/health', healthRoutes);
 app.use('/api/external-providers', externalProviderRoutes);
 app.use('/api/synced-data', syncedDataRoutes);
 app.use('/api/integrations/garmin', garminRoutes);
+app.use('/api/integrations/garmin-health-data', garminHealthDataRoutes);
 app.use('/api/withings', withingsRoutes);
 app.use('/api/version', versionRoutes);
 app.use('/api/announcement', announcementRoutes);
@@ -666,6 +671,62 @@ const scheduleGarminSyncs = async () => {
       }
     } catch (error) {
       console.error('[CRON] scheduleGarminSyncs task failed:', error);
+    }
+  });
+};
+// Fork: Garmin Health Data (GHD) keep-alive sync — skip users with an active history job
+const scheduleGarminHealthDataSyncs = async () => {
+  cron.schedule('0 * * * *', async () => {
+    try {
+      const busyUsers =
+        await ghdHistoryImportRepository.listUserIdsWithActiveHistoryJobs();
+      const providers =
+        await externalProviderRepository.getProvidersByType(
+          'garmin_health_data'
+        );
+      for (const provider of providers) {
+        if (!provider.is_active || provider.sync_frequency === 'manual') {
+          continue;
+        }
+        if (busyUsers.has(provider.user_id)) {
+          log(
+            'info',
+            `[CRON] Skipping GHD keep-alive for ${provider.user_id}; history import active`
+          );
+          continue;
+        }
+        try {
+          const result = await garminHealthDataService.syncGarminHealthData(
+            provider.user_id,
+            'scheduled'
+          );
+          if (result.status !== 'success') {
+            console.warn(
+              `[CRON] GHD sync completed with error for user ${provider.user_id}: ${result.error ?? 'unknown'}`
+            );
+          }
+        } catch (error) {
+          console.error(
+            `[CRON] GHD sync failed for user ${provider.user_id}:`,
+            error
+          );
+        }
+      }
+    } catch (error) {
+      console.error('[CRON] scheduleGarminHealthDataSyncs task failed:', error);
+    }
+  });
+};
+// Fork: GHD history import — advance up to 2 week-chunks per minute
+const scheduleGhdHistoryImports = async () => {
+  cron.schedule('*/1 * * * *', async () => {
+    try {
+      const advanced = await ghdHistoryImportService.advanceActiveJobs(2);
+      if (advanced > 0) {
+        log('info', `[CRON] GHD history import advanced ${advanced} chunk(s)`);
+      }
+    } catch (error) {
+      console.error('[CRON] scheduleGhdHistoryImports task failed:', error);
     }
   });
 };
@@ -870,6 +931,8 @@ applyMigrations()
     scheduleSessionCleanup();
     scheduleWithingsSyncs();
     scheduleGarminSyncs();
+    scheduleGarminHealthDataSyncs();
+    scheduleGhdHistoryImports();
     scheduleFitbitSyncs();
     scheduleOuraSyncs();
     schedulePolarSyncs();

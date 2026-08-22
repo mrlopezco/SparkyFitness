@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-08-20_
+_Last updated: 2026-08-21_
 
 SparkyFitness Server is the backend API package for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessServer/`.
 
@@ -247,6 +247,8 @@ When searching, ignore noisy/generated directories unless you explicitly need th
   inspect `services/trainingPlanService.ts` (orchestration), `services/trainingPlanAiService.ts` (propose/adjust/confirm), `services/trainingCoachService.ts` (coach turns, memories, summaries), `services/trainingAthleteSnapshotService.ts` (prompt context), `services/trainingRunningScience.ts` (pure pace derivation), `services/trainingAdherenceService.ts` (auto-matching), `services/trainingFitnessTestService.ts`, and `services/trainingCheckInService.ts` (daily 07:00 cron). Shared errors and provider resolution live in `services/trainingAiSupport.ts`; prompts live in `prompts/training-*.md`
 - Training plan persistence issue (fork feature):
   inspect `models/trainingPlanRepository.ts`, `models/trainingCoachRepository.ts`, and `models/trainingFitnessTestRepository.ts`. `listActivePlansForScan` is the only training query on `getSystemClient()` and exists solely for the cron scan; every per-user read and write goes through `getClient(userId)`
+- Garmin Health Data (fork: GHD sidecar provider `garmin_health_data`):
+  inspect `routes/garminHealthDataRoutes.ts`, `services/garminHealthDataService.ts`, `services/ghdHistoryImportService.ts`, `models/ghdHistoryImportRepository.ts`, `integrations/garminHealthData/ghdMicroserviceClient.ts`, and `services/garminHealthData/*Projector.ts`. Hourly keep-alive + minutely history chunks are registered in `SparkyFitnessServer.ts`. Do not rewrite classic `garminService`.
 
 ## Architecture Resources
 

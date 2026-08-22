@@ -11,6 +11,7 @@ export interface RacePredictionSeconds {
   race_prediction_5k_seconds?: number | null;
   race_prediction_10k_seconds?: number | null;
   race_prediction_half_marathon_seconds?: number | null;
+  race_prediction_marathon_seconds?: number | null;
 }
 
 export type DerivedPaces = NonNullable<
@@ -115,6 +116,9 @@ export function derivePacesFromRacePredictions(
   const half = isUsable(predictions.race_prediction_half_marathon_seconds)
     ? predictions.race_prediction_half_marathon_seconds
     : null;
+  const marathon = isUsable(predictions.race_prediction_marathon_seconds)
+    ? predictions.race_prediction_marathon_seconds
+    : null;
 
   const effectiveFiveK =
     fiveK ??
@@ -134,6 +138,8 @@ export function derivePacesFromRacePredictions(
     race_prediction_10k_seconds: tenK === null ? null : Math.round(tenK),
     race_prediction_half_marathon_seconds:
       half === null ? null : Math.round(half),
+    race_prediction_marathon_seconds:
+      marathon === null ? null : Math.round(marathon),
     estimated_easy_pace_min_per_km:
       fiveKPace === null ? null : round(fiveKPace * EASY_FACTOR_OF_5K),
     estimated_tempo_pace_min_per_km:

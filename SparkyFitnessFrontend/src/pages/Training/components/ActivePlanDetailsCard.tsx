@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CalendarDays, RefreshCw } from 'lucide-react';
+import { CalendarDays, Eye, RefreshCw } from 'lucide-react';
 import type {
   TrainingAthleteSnapshot,
   TrainingPlanDetail,
@@ -19,6 +20,7 @@ import {
   SPORT_FOCUS_LABELS,
   formatPaceMinPerKm,
 } from '../trainingConstants';
+import AthleteSnapshotDialog from './AthleteSnapshotDialog';
 
 interface ActivePlanDetailsCardProps {
   plan: TrainingPlanDetail | null | undefined;
@@ -38,6 +40,7 @@ export default function ActivePlanDetailsCard({
   onOpenPlanTab,
 }: ActivePlanDetailsCardProps) {
   const { t } = useTranslation();
+  const [snapshotOpen, setSnapshotOpen] = useState(false);
 
   if (!plan) {
     return (
@@ -140,16 +143,33 @@ export default function ActivePlanDetailsCard({
                   )}
             </p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={snapshotRefreshing}
-            onClick={onRefreshSnapshot}
-          >
-            <RefreshCw className="mr-2 h-4 w-4" />
-            {t('training.snapshot.refresh', 'Refresh snapshot')}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!snapshot}
+              onClick={() => setSnapshotOpen(true)}
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              {t('training.snapshot.view', 'View snapshot')}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={snapshotRefreshing}
+              onClick={onRefreshSnapshot}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              {t('training.snapshot.refresh', 'Refresh snapshot')}
+            </Button>
+          </div>
         </div>
+
+        <AthleteSnapshotDialog
+          snapshot={snapshot}
+          open={snapshotOpen}
+          onOpenChange={setSnapshotOpen}
+        />
 
         {science && (
           <div className="grid gap-2 sm:grid-cols-3">

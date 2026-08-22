@@ -12,6 +12,7 @@ import trainingPlanRepository, {
   type ActivityEntryRow,
   type RacePredictionAggregate,
   type ReadinessAggregate,
+  type SleepAggregate,
   type WeightSample,
 } from '../models/trainingPlanRepository.js';
 import trainingFitnessTestRepository from '../models/trainingFitnessTestRepository.js';
@@ -41,6 +42,14 @@ export const MAX_RECENT_FITNESS_TESTS = 5;
 function round(value: number, decimals = 1): number {
   const factor = 10 ** decimals;
   return Math.round(value * factor) / factor;
+}
+
+function roundNullable(
+  value: number | null | undefined,
+  decimals = 1
+): number | null {
+  if (value === null || value === undefined) return null;
+  return round(value, decimals);
 }
 
 function sportOf(entry: ActivityEntryRow): ActivitySport {
@@ -79,8 +88,15 @@ export interface SnapshotInputs {
   activities: readonly ActivityEntryRow[];
   weights: readonly WeightSample[];
   readiness: ReadinessAggregate;
+  sleep?: SleepAggregate;
   racePredictions?: RacePredictionAggregate;
   fitnessTests?: readonly FitnessTestSummary[];
+}
+
+function hasAnyNumber(
+  ...values: ReadonlyArray<number | null | undefined>
+): boolean {
+  return values.some((value) => value !== null && value !== undefined);
 }
 
 export function buildSnapshotPayload(
@@ -92,6 +108,7 @@ export function buildSnapshotPayload(
     activities,
     weights,
     readiness,
+    sleep,
     racePredictions,
     fitnessTests,
   } = inputs;
@@ -164,12 +181,37 @@ export function buildSnapshotPayload(
     notes.push('No weight check-ins in the window; weight goals are unguided.');
   }
 
-  const hasReadiness =
-    readiness.avg_training_readiness !== null ||
-    readiness.avg_acute_load !== null ||
-    readiness.latest_vo2_max !== null ||
-    readiness.lactate_threshold_bpm !== null ||
-    readiness.lactate_threshold_speed_mps !== null;
+  const hasReadiness = hasAnyNumber(
+    readiness.avg_training_readiness,
+    readiness.latest_training_readiness,
+    readiness.avg_acute_load,
+    readiness.avg_chronic_load,
+    readiness.latest_acwr,
+    readiness.avg_recovery_time_hours,
+    readiness.latest_rhr,
+    readiness.avg_rhr,
+    readiness.avg_body_battery_low,
+    readiness.avg_body_battery_high,
+    readiness.avg_stress,
+    readiness.latest_overnight_hrv,
+    readiness.avg_overnight_hrv,
+    readiness.latest_vo2_max,
+    readiness.lactate_threshold_bpm,
+    readiness.lactate_threshold_speed_mps
+  );
+
+  if (hasReadiness && readiness.latest_acwr === null) {
+    notes.push(
+      'ACWR is missing; treat acute/chronic load as soft signals only.'
+    );
+  }
+
+  const hasSleep = sleep !== undefined && sleep.nights_logged > 0;
+  if (!hasSleep) {
+    notes.push(
+      'No sleep nights logged in the window; recovery advice is unanchored to sleep.'
+    );
+  }
 
   const runningScience = racePredictions
     ? derivePacesFromRacePredictions(racePredictions)
@@ -182,6 +224,15 @@ export function buildSnapshotPayload(
     );
   }
 
+  const readinessTrend =
+    readiness.readiness_trend.length > 0
+      ? readiness.readiness_trend.map((point) => ({
+          date: point.date,
+          training_readiness: roundNullable(point.training_readiness),
+          body_battery_lowest: roundNullable(point.body_battery_lowest),
+        }))
+      : undefined;
+
   return {
     as_of_date: asOfDate,
     window_days: windowDays,
@@ -191,26 +242,51 @@ export function buildSnapshotPayload(
     ...(hasReadiness
       ? {
           readiness: {
-            avg_training_readiness:
-              readiness.avg_training_readiness === null
-                ? null
-                : round(readiness.avg_training_readiness),
-            avg_acute_load:
-              readiness.avg_acute_load === null
-                ? null
-                : round(readiness.avg_acute_load),
-            latest_vo2_max:
-              readiness.latest_vo2_max === null
-                ? null
-                : round(readiness.latest_vo2_max),
+            avg_training_readiness: roundNullable(
+              readiness.avg_training_readiness
+            ),
+            latest_training_readiness: roundNullable(
+              readiness.latest_training_readiness
+            ),
+            avg_acute_load: roundNullable(readiness.avg_acute_load),
+            avg_chronic_load: roundNullable(readiness.avg_chronic_load),
+            latest_acwr: roundNullable(readiness.latest_acwr, 2),
+            avg_recovery_time_hours: roundNullable(
+              readiness.avg_recovery_time_hours
+            ),
+            latest_rhr: roundNullable(readiness.latest_rhr),
+            avg_rhr: roundNullable(readiness.avg_rhr),
+            avg_body_battery_low: roundNullable(
+              readiness.avg_body_battery_low
+            ),
+            avg_body_battery_high: roundNullable(
+              readiness.avg_body_battery_high
+            ),
+            avg_stress: roundNullable(readiness.avg_stress),
+            latest_overnight_hrv: roundNullable(
+              readiness.latest_overnight_hrv
+            ),
+            avg_overnight_hrv: roundNullable(readiness.avg_overnight_hrv),
+            latest_vo2_max: roundNullable(readiness.latest_vo2_max),
             lactate_threshold_bpm: readiness.lactate_threshold_bpm,
-            lactate_threshold_speed_mps:
-              readiness.lactate_threshold_speed_mps === null
-                ? null
-                : round(readiness.lactate_threshold_speed_mps, 2),
+            lactate_threshold_speed_mps: roundNullable(
+              readiness.lactate_threshold_speed_mps,
+              2
+            ),
           },
         }
       : {}),
+    ...(hasSleep
+      ? {
+          sleep: {
+            nights_logged: sleep.nights_logged,
+            avg_sleep_score: roundNullable(sleep.avg_sleep_score),
+            avg_hours_asleep: roundNullable(sleep.avg_hours_asleep, 2),
+            avg_deep_hours: roundNullable(sleep.avg_deep_hours, 2),
+          },
+        }
+      : {}),
+    ...(readinessTrend ? { readiness_trend: readinessTrend } : {}),
     ...(hasRunningScience ? { running_science: runningScience } : {}),
     ...(fitnessTests && fitnessTests.length
       ? { recent_fitness_tests: [...fitnessTests] }
@@ -266,11 +342,12 @@ export async function rebuildSnapshot(
   const asOfDate = todayInZone(tz);
   const startDate = addDays(asOfDate, -windowDays);
 
-  const [activities, weights, readiness, racePredictions, tests] =
+  const [activities, weights, readiness, sleep, racePredictions, tests] =
     await Promise.all([
       trainingPlanRepository.listActivityEntries(userId, startDate, asOfDate),
       trainingPlanRepository.listWeightSeries(userId, startDate, asOfDate),
       trainingPlanRepository.getReadinessAggregate(userId, startDate, asOfDate),
+      trainingPlanRepository.getSleepAggregate(userId, startDate, asOfDate),
       trainingPlanRepository.getRacePredictions(userId, startDate, asOfDate),
       trainingFitnessTestRepository.listTests(userId, {
         planId: planId ?? undefined,
@@ -284,6 +361,7 @@ export async function rebuildSnapshot(
     activities,
     weights,
     readiness,
+    sleep,
     racePredictions,
     fitnessTests: tests.map((test) => ({
       id: test.id,

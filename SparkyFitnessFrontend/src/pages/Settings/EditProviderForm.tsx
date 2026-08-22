@@ -561,6 +561,38 @@ export const EditProviderForm = ({
           )}
         </>
       )}
+      {editData.provider_type === 'garmin_health_data' && (
+        <div className="col-span-2 space-y-2">
+          {provider.has_token ||
+          provider.garmin_connect_status === 'linked' ||
+          provider.garmin_connect_status === 'connected' ? (
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+              <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
+                <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+                <span className="font-medium">
+                  {t(
+                    'integrations.ghdConnectedTitle',
+                    'Connected to Garmin Health Data'
+                  )}
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground mt-2">
+                {t(
+                  'integrations.ghdConnectedHelp',
+                  'Deep archive for Training. Fill history gaps once from the provider card, then set sync to daily. Classic Garmin remains for nutrition. To reconnect with different credentials, disconnect first and add a new provider.'
+                )}
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              {t(
+                'integrations.ghdNotLinkedEdit',
+                'Not linked. Disconnect or delete this row, then add Garmin Health Data again to log in.'
+              )}
+            </p>
+          )}
+        </div>
+      )}
       {editData.provider_type === 'fitbit' && (
         <>
           <div>
@@ -871,6 +903,7 @@ export const EditProviderForm = ({
       )}
       {(editData.provider_type === 'withings' ||
         editData.provider_type === 'garmin' ||
+        editData.provider_type === 'garmin_health_data' ||
         editData.provider_type === 'fitbit' ||
         editData.provider_type === 'oura' ||
         editData.provider_type === 'googlehealth' ||

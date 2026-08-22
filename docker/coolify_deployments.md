@@ -39,6 +39,7 @@ These must persist across redeploys (Coolify persistent storage or host paths):
 | `DB_PATH` | Postgres data (`/var/lib/postgresql`) |
 | `SERVER_BACKUP_PATH` | Server backups |
 | `SERVER_UPLOADS_PATH` | Uploads (avatars, exercise images) |
+| `GHD_DATA_PATH` | GHD sidecar `/data` (tokens + SQLite per user) |
 
 ### Common homeserver flags
 
@@ -52,6 +53,8 @@ These must persist across redeploys (Coolify persistent storage or host paths):
 | `NGINX_RATE_LIMIT` | e.g. `5r/s` |
 | `GARMIN_SERVICE_PORT` | `8000` (default) |
 | `GARMIN_SERVICE_IS_CN` | `false` unless China region |
+| `GHD_MICROSERVICE_URL` | `http://sparkyfitness-ghd:8001` (default) |
+| `GHD_SERVICE_PORT` | `8001` (default) |
 
 Generate secrets once and store them in Coolify:
 
@@ -69,7 +72,7 @@ openssl rand -hex 32
 ## Deploy workflow
 
 1. Push commits to the branch Coolify watches.
-2. Coolify rebuilds `sparkyfitness-server`, `sparkyfitness-frontend`, and `sparkyfitness-garmin` from this repo’s Dockerfiles, then recreates containers.
+2. Coolify rebuilds `sparkyfitness-server`, `sparkyfitness-frontend`, `sparkyfitness-garmin`, and `sparkyfitness-ghd` from this repo’s Dockerfiles, then recreates containers.
 3. After Dockerfile or dependency changes, force a rebuild in Coolify if auto-deploy did not pick up cache-busting (Redeploy / Rebuild without cache).
 
 Local dry-run of compose resolution (optional, from a machine with Docker):
@@ -86,6 +89,7 @@ docker compose -f docker/docker-compose.coolify.yml config
 | `sparkyfitness-server` | Build `docker/Dockerfile.backend` |
 | `sparkyfitness-frontend` | Build `docker/Dockerfile.frontend` |
 | `sparkyfitness-garmin` | Build `docker/Dockerfile.garmin_microservice` |
+| `sparkyfitness-ghd` | Build `docker/Dockerfile.ghd_microservice` |
 
 ## Pitfalls
 
@@ -93,4 +97,5 @@ docker compose -f docker/docker-compose.coolify.yml config
 - **Do not rotate** `SPARKY_FITNESS_API_ENCRYPTION_KEY` or `BETTER_AUTH_SECRET` after production data / 2FA exists unless you accept lockouts and re-linking providers.
 - **`DB_PATH` must be durable.** If the path is empty or ephemeral, redeploys wipe the database.
 - Garmin depends on DB + server; if the API cannot reach Garmin, check `GARMIN_MICROSERVICE_URL` (default `http://sparkyfitness-garmin:8000`) and container logs.
+- GHD sidecar needs durable `GHD_DATA_PATH`; if the Node API cannot reach it, check `GHD_MICROSERVICE_URL` (default `http://sparkyfitness-ghd:8001`) and `sparkyfitness-ghd` logs.
 - `SPARKY_FITNESS_FRONTEND_URL` must match the browser origin (scheme + host + port) or auth/CORS will fail.

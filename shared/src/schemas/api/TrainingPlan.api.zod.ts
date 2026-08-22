@@ -257,11 +257,45 @@ export const trainingAthleteSnapshotPayloadSchema = z.object({
   readiness: z
     .object({
       avg_training_readiness: z.number().nullable(),
+      latest_training_readiness: z.number().nullable().optional(),
       avg_acute_load: z.number().nullable(),
+      avg_chronic_load: z.number().nullable().optional(),
+      latest_acwr: z.number().nullable().optional(),
+      avg_recovery_time_hours: z.number().nullable().optional(),
+      latest_rhr: z.number().nullable().optional(),
+      avg_rhr: z.number().nullable().optional(),
+      avg_body_battery_low: z.number().nullable().optional(),
+      avg_body_battery_high: z.number().nullable().optional(),
+      avg_stress: z.number().nullable().optional(),
+      latest_overnight_hrv: z.number().nullable().optional(),
+      avg_overnight_hrv: z.number().nullable().optional(),
       latest_vo2_max: z.number().nullable(),
       lactate_threshold_bpm: z.number().nullable().optional(),
       lactate_threshold_speed_mps: z.number().nullable().optional(),
     })
+    .optional(),
+  /** Compact sleep summary from `sleep_entries` (prefer garmin_health_data). */
+  sleep: z
+    .object({
+      nights_logged: z.number().int().nonnegative(),
+      avg_sleep_score: z.number().nullable(),
+      avg_hours_asleep: z.number().nullable(),
+      avg_deep_hours: z.number().nullable(),
+    })
+    .optional(),
+  /**
+   * Last few days of readiness / body battery for trend context in prompts.
+   * Summaries only — not raw sample series.
+   */
+  readiness_trend: z
+    .array(
+      z.object({
+        date: dayStringSchema,
+        training_readiness: z.number().nullable(),
+        body_battery_lowest: z.number().nullable(),
+      }),
+    )
+    .max(7)
     .optional(),
   /** Race predictions + derived training paces (phase 3 running science). */
   running_science: z
@@ -269,6 +303,7 @@ export const trainingAthleteSnapshotPayloadSchema = z.object({
       race_prediction_5k_seconds: z.number().nullable(),
       race_prediction_10k_seconds: z.number().nullable(),
       race_prediction_half_marathon_seconds: z.number().nullable(),
+      race_prediction_marathon_seconds: z.number().nullable().optional(),
       estimated_easy_pace_min_per_km: z.number().nullable(),
       estimated_tempo_pace_min_per_km: z.number().nullable(),
       estimated_threshold_pace_min_per_km: z.number().nullable(),

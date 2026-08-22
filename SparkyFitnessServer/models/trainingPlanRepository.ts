@@ -1021,27 +1021,134 @@ async function listWeightSeries(
   }
 }
 
+export interface ReadinessTrendPoint {
+  date: string;
+  training_readiness: number | null;
+  body_battery_lowest: number | null;
+}
+
 export interface ReadinessAggregate {
   avg_training_readiness: number | null;
+  latest_training_readiness: number | null;
   avg_acute_load: number | null;
+  avg_chronic_load: number | null;
+  latest_acwr: number | null;
+  avg_recovery_time_hours: number | null;
+  latest_rhr: number | null;
+  avg_rhr: number | null;
+  avg_body_battery_low: number | null;
+  avg_body_battery_high: number | null;
+  avg_stress: number | null;
+  latest_overnight_hrv: number | null;
+  avg_overnight_hrv: number | null;
   latest_vo2_max: number | null;
   lactate_threshold_bpm: number | null;
   lactate_threshold_speed_mps: number | null;
+  readiness_trend: ReadinessTrendPoint[];
 }
+
+export interface SleepAggregate {
+  nights_logged: number;
+  avg_sleep_score: number | null;
+  avg_hours_asleep: number | null;
+  avg_deep_hours: number | null;
+}
+
+/** Single-day physiology for session AI review (compact, not a series). */
+export interface DayReadinessMetrics {
+  training_readiness: number | null;
+  body_battery_lowest: number | null;
+  resting_heart_rate: number | null;
+  sleep_score: number | null;
+  overnight_hrv: number | null;
+}
+
+/** Compact matched activity for session AI review. */
+export interface CompactExerciseEntry {
+  id: string;
+  entry_date: string;
+  exercise_name: string | null;
+  distance_km: number | null;
+  duration_minutes: number | null;
+  avg_heart_rate: number | null;
+  max_heart_rate: number | null;
+  calories_burned: number | null;
+  provider_name: string | null;
+}
+
+/**
+ * Prefer GHD (`garmin_health_data`) over Connect (`garmin`) when both exist for
+ * the same calendar day. Used in DISTINCT ON / ORDER BY clauses.
+ */
+const HEALTH_SOURCE_RANK = `CASE source_provider
+  WHEN 'garmin_health_data' THEN 0
+  WHEN 'garmin' THEN 1
+  ELSE 2
+END`;
+
+const SLEEP_SOURCE_RANK = `CASE source
+  WHEN 'garmin_health_data' THEN 0
+  WHEN 'garmin' THEN 1
+  ELSE 2
+END`;
 
 /**
  * Each "latest" column is fetched independently: a watch can publish VO2 max on
  * a day it has no lactate reading, so picking one newest row would drop the
- * other signal entirely.
+ * other signal entirely. Same-day ties prefer garmin_health_data over garmin.
  */
 function latestMetric(column: string): string {
   return `(SELECT ${column} FROM daily_health_metrics
             WHERE user_id = $1
               AND entry_date BETWEEN $2::date AND $3::date
               AND ${column} IS NOT NULL
-            ORDER BY entry_date DESC
+            ORDER BY entry_date DESC, ${HEALTH_SOURCE_RANK}
             LIMIT 1)`;
 }
+
+function latestSleepMetric(column: string): string {
+  return `(SELECT ${column} FROM sleep_entries
+            WHERE user_id = $1
+              AND entry_date BETWEEN $2::date AND $3::date
+              AND ${column} IS NOT NULL
+            ORDER BY entry_date DESC, ${SLEEP_SOURCE_RANK}
+            LIMIT 1)`;
+}
+
+/** One preferred daily_health_metrics row per calendar day in the window. */
+const PREFERRED_DAY_METRICS_CTE = `
+  preferred_days AS (
+    SELECT DISTINCT ON (entry_date)
+      entry_date,
+      training_readiness_score,
+      acute_training_load,
+      chronic_training_load,
+      acwr_ratio,
+      recovery_time_hours,
+      resting_heart_rate,
+      body_battery_lowest,
+      body_battery_highest,
+      avg_stress_level
+    FROM daily_health_metrics
+    WHERE user_id = $1
+      AND entry_date BETWEEN $2::date AND $3::date
+    ORDER BY entry_date, ${HEALTH_SOURCE_RANK}
+  )`;
+
+/** One preferred sleep_entries row per calendar night in the window. */
+const PREFERRED_SLEEP_CTE = `
+  preferred_sleep AS (
+    SELECT DISTINCT ON (entry_date)
+      entry_date,
+      sleep_score,
+      time_asleep_in_seconds,
+      deep_sleep_seconds,
+      avg_overnight_hrv
+    FROM sleep_entries
+    WHERE user_id = $1
+      AND entry_date BETWEEN $2::date AND $3::date
+    ORDER BY entry_date, ${SLEEP_SOURCE_RANK}
+  )`;
 
 async function getReadinessAggregate(
   userId: string,
@@ -1050,29 +1157,118 @@ async function getReadinessAggregate(
 ): Promise<ReadinessAggregate> {
   const client = await connect(userId);
   try {
+    const [aggResult, trendResult] = await Promise.all([
+      client.query<{
+        avg_training_readiness: number | string | null;
+        latest_training_readiness: number | string | null;
+        avg_acute_load: number | string | null;
+        avg_chronic_load: number | string | null;
+        latest_acwr: number | string | null;
+        avg_recovery_time_hours: number | string | null;
+        latest_rhr: number | string | null;
+        avg_rhr: number | string | null;
+        avg_body_battery_low: number | string | null;
+        avg_body_battery_high: number | string | null;
+        avg_stress: number | string | null;
+        latest_overnight_hrv: number | string | null;
+        avg_overnight_hrv: number | string | null;
+        latest_vo2_max: number | string | null;
+        lactate_threshold_bpm: number | string | null;
+        lactate_threshold_speed_mps: number | string | null;
+      }>(
+        `WITH ${PREFERRED_DAY_METRICS_CTE},
+              ${PREFERRED_SLEEP_CTE}
+         SELECT (SELECT AVG(training_readiness_score) FROM preferred_days) AS avg_training_readiness,
+                ${latestMetric('training_readiness_score')} AS latest_training_readiness,
+                (SELECT AVG(acute_training_load) FROM preferred_days) AS avg_acute_load,
+                (SELECT AVG(chronic_training_load) FROM preferred_days) AS avg_chronic_load,
+                ${latestMetric('acwr_ratio')} AS latest_acwr,
+                (SELECT AVG(recovery_time_hours) FROM preferred_days) AS avg_recovery_time_hours,
+                ${latestMetric('resting_heart_rate')} AS latest_rhr,
+                (SELECT AVG(resting_heart_rate) FROM preferred_days) AS avg_rhr,
+                (SELECT AVG(body_battery_lowest) FROM preferred_days) AS avg_body_battery_low,
+                (SELECT AVG(body_battery_highest) FROM preferred_days) AS avg_body_battery_high,
+                (SELECT AVG(avg_stress_level) FROM preferred_days) AS avg_stress,
+                ${latestSleepMetric('avg_overnight_hrv')} AS latest_overnight_hrv,
+                (SELECT AVG(avg_overnight_hrv) FROM preferred_sleep) AS avg_overnight_hrv,
+                ${latestMetric('vo2_max')} AS latest_vo2_max,
+                ${latestMetric('lactate_threshold_bpm')} AS lactate_threshold_bpm,
+                ${latestMetric('lactate_threshold_speed_mps')} AS lactate_threshold_speed_mps`,
+        [userId, startDate, endDate]
+      ),
+      client.query<{
+        date: string;
+        training_readiness: number | string | null;
+        body_battery_lowest: number | string | null;
+      }>(
+        `WITH ${PREFERRED_DAY_METRICS_CTE}
+         SELECT to_char(entry_date, 'YYYY-MM-DD') AS date,
+                training_readiness_score AS training_readiness,
+                body_battery_lowest
+         FROM preferred_days
+         ORDER BY entry_date DESC
+         LIMIT 7`,
+        [userId, startDate, endDate]
+      ),
+    ]);
+    const row = aggResult.rows[0];
+    return {
+      avg_training_readiness: toNumber(row?.avg_training_readiness),
+      latest_training_readiness: toNumber(row?.latest_training_readiness),
+      avg_acute_load: toNumber(row?.avg_acute_load),
+      avg_chronic_load: toNumber(row?.avg_chronic_load),
+      latest_acwr: toNumber(row?.latest_acwr),
+      avg_recovery_time_hours: toNumber(row?.avg_recovery_time_hours),
+      latest_rhr: toNumber(row?.latest_rhr),
+      avg_rhr: toNumber(row?.avg_rhr),
+      avg_body_battery_low: toNumber(row?.avg_body_battery_low),
+      avg_body_battery_high: toNumber(row?.avg_body_battery_high),
+      avg_stress: toNumber(row?.avg_stress),
+      latest_overnight_hrv: toNumber(row?.latest_overnight_hrv),
+      avg_overnight_hrv: toNumber(row?.avg_overnight_hrv),
+      latest_vo2_max: toNumber(row?.latest_vo2_max),
+      lactate_threshold_bpm: toNumber(row?.lactate_threshold_bpm),
+      lactate_threshold_speed_mps: toNumber(row?.lactate_threshold_speed_mps),
+      readiness_trend: trendResult.rows
+        .map((trendRow) => ({
+          date: trendRow.date,
+          training_readiness: toNumber(trendRow.training_readiness),
+          body_battery_lowest: toNumber(trendRow.body_battery_lowest),
+        }))
+        .reverse(),
+    };
+  } finally {
+    client.release();
+  }
+}
+
+async function getSleepAggregate(
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<SleepAggregate> {
+  const client = await connect(userId);
+  try {
     const result = await client.query<{
-      avg_training_readiness: number | string | null;
-      avg_acute_load: number | string | null;
-      latest_vo2_max: number | string | null;
-      lactate_threshold_bpm: number | string | null;
-      lactate_threshold_speed_mps: number | string | null;
+      nights_logged: number | string | null;
+      avg_sleep_score: number | string | null;
+      avg_hours_asleep: number | string | null;
+      avg_deep_hours: number | string | null;
     }>(
-      `SELECT AVG(training_readiness_score) AS avg_training_readiness,
-              AVG(acute_training_load) AS avg_acute_load,
-              ${latestMetric('vo2_max')} AS latest_vo2_max,
-              ${latestMetric('lactate_threshold_bpm')} AS lactate_threshold_bpm,
-              ${latestMetric('lactate_threshold_speed_mps')} AS lactate_threshold_speed_mps
-       FROM daily_health_metrics
-       WHERE user_id = $1 AND entry_date BETWEEN $2::date AND $3::date`,
+      `WITH ${PREFERRED_SLEEP_CTE}
+       SELECT COUNT(*)::int AS nights_logged,
+              AVG(sleep_score) AS avg_sleep_score,
+              AVG(time_asleep_in_seconds) / 3600.0 AS avg_hours_asleep,
+              AVG(deep_sleep_seconds) / 3600.0 AS avg_deep_hours
+       FROM preferred_sleep`,
       [userId, startDate, endDate]
     );
     const row = result.rows[0];
     return {
-      avg_training_readiness: toNumber(row?.avg_training_readiness),
-      avg_acute_load: toNumber(row?.avg_acute_load),
-      latest_vo2_max: toNumber(row?.latest_vo2_max),
-      lactate_threshold_bpm: toNumber(row?.lactate_threshold_bpm),
-      lactate_threshold_speed_mps: toNumber(row?.lactate_threshold_speed_mps),
+      nights_logged: toNumber(row?.nights_logged) ?? 0,
+      avg_sleep_score: toNumber(row?.avg_sleep_score),
+      avg_hours_asleep: toNumber(row?.avg_hours_asleep),
+      avg_deep_hours: toNumber(row?.avg_deep_hours),
     };
   } finally {
     client.release();
@@ -1084,6 +1280,7 @@ export interface RacePredictionAggregate {
   race_prediction_5k_seconds: number | null;
   race_prediction_10k_seconds: number | null;
   race_prediction_half_marathon_seconds: number | null;
+  race_prediction_marathon_seconds: number | null;
 }
 
 async function getRacePredictions(
@@ -1097,10 +1294,12 @@ async function getRacePredictions(
       race_prediction_5k_seconds: number | string | null;
       race_prediction_10k_seconds: number | string | null;
       race_prediction_half_marathon_seconds: number | string | null;
+      race_prediction_marathon_seconds: number | string | null;
     }>(
       `SELECT ${latestMetric('race_prediction_5k_seconds')} AS race_prediction_5k_seconds,
               ${latestMetric('race_prediction_10k_seconds')} AS race_prediction_10k_seconds,
-              ${latestMetric('race_prediction_half_marathon_seconds')} AS race_prediction_half_marathon_seconds`,
+              ${latestMetric('race_prediction_half_marathon_seconds')} AS race_prediction_half_marathon_seconds,
+              ${latestMetric('race_prediction_marathon_seconds')} AS race_prediction_marathon_seconds`,
       [userId, startDate, endDate]
     );
     const row = result.rows[0];
@@ -1110,6 +1309,117 @@ async function getRacePredictions(
       race_prediction_half_marathon_seconds: toNumber(
         row?.race_prediction_half_marathon_seconds
       ),
+      race_prediction_marathon_seconds: toNumber(
+        row?.race_prediction_marathon_seconds
+      ),
+    };
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Compact day physiology for AI session review. Prefers garmin_health_data when
+ * both GHD and Connect rows exist for the scheduled date.
+ */
+async function getDayReadinessMetrics(
+  userId: string,
+  entryDate: string
+): Promise<DayReadinessMetrics | null> {
+  const client = await connect(userId);
+  try {
+    const [healthResult, sleepResult] = await Promise.all([
+      client.query<{
+        training_readiness: number | string | null;
+        body_battery_lowest: number | string | null;
+        resting_heart_rate: number | string | null;
+      }>(
+        `SELECT training_readiness_score AS training_readiness,
+                body_battery_lowest,
+                resting_heart_rate
+         FROM daily_health_metrics
+         WHERE user_id = $1 AND entry_date = $2::date
+         ORDER BY ${HEALTH_SOURCE_RANK}
+         LIMIT 1`,
+        [userId, entryDate]
+      ),
+      client.query<{
+        sleep_score: number | string | null;
+        overnight_hrv: number | string | null;
+      }>(
+        `SELECT sleep_score, avg_overnight_hrv AS overnight_hrv
+         FROM sleep_entries
+         WHERE user_id = $1 AND entry_date = $2::date
+         ORDER BY ${SLEEP_SOURCE_RANK}
+         LIMIT 1`,
+        [userId, entryDate]
+      ),
+    ]);
+    const health = healthResult.rows[0];
+    const sleep = sleepResult.rows[0];
+    if (!health && !sleep) return null;
+    return {
+      training_readiness: toNumber(health?.training_readiness),
+      body_battery_lowest: toNumber(health?.body_battery_lowest),
+      resting_heart_rate: toNumber(health?.resting_heart_rate),
+      sleep_score: toNumber(sleep?.sleep_score),
+      overnight_hrv: toNumber(sleep?.overnight_hrv),
+    };
+  } finally {
+    client.release();
+  }
+}
+
+async function getCompactExerciseEntry(
+  userId: string,
+  exerciseEntryId: string
+): Promise<CompactExerciseEntry | null> {
+  const client = await connect(userId);
+  try {
+    const result = await client.query<{
+      id: string;
+      entry_date: string;
+      exercise_name: string | null;
+      distance_km: number | string | null;
+      duration_minutes: number | string | null;
+      avg_heart_rate: number | string | null;
+      max_heart_rate: number | string | null;
+      calories_burned: number | string | null;
+      provider_name: string | null;
+    }>(
+      `SELECT ee.id,
+              to_char(ee.entry_date, 'YYYY-MM-DD') AS entry_date,
+              ee.exercise_name,
+              ee.distance AS distance_km,
+              ee.duration_minutes,
+              ee.avg_heart_rate,
+              ee.max_heart_rate,
+              ee.calories_burned,
+              d.provider_name
+       FROM exercise_entries ee
+       LEFT JOIN LATERAL (
+         SELECT provider_name
+         FROM exercise_entry_activity_details
+         WHERE exercise_entry_id = ee.id
+         ORDER BY created_at DESC
+         LIMIT 1
+       ) d ON TRUE
+       WHERE ee.user_id = $1 AND ee.id = $2
+       LIMIT 1`,
+      [userId, exerciseEntryId]
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    return {
+      id: row.id,
+      entry_date: row.entry_date,
+      exercise_name: row.exercise_name,
+      distance_km: toNumber(row.distance_km),
+      duration_minutes: toNumber(row.duration_minutes),
+      avg_heart_rate: toNumber(row.avg_heart_rate),
+      max_heart_rate: toNumber(row.max_heart_rate),
+      calories_burned: toNumber(row.calories_burned),
+      provider_name: row.provider_name,
     };
   } finally {
     client.release();
@@ -1199,7 +1509,10 @@ export {
   listActivityEntries,
   listWeightSeries,
   getReadinessAggregate,
+  getSleepAggregate,
   getRacePredictions,
+  getDayReadinessMetrics,
+  getCompactExerciseEntry,
   countUnmatchedPlannedSessions,
   listActivePlansForScan,
 };
@@ -1226,7 +1539,10 @@ export default {
   listActivityEntries,
   listWeightSeries,
   getReadinessAggregate,
+  getSleepAggregate,
   getRacePredictions,
+  getDayReadinessMetrics,
+  getCompactExerciseEntry,
   countUnmatchedPlannedSessions,
   listActivePlansForScan,
 };

@@ -117,6 +117,20 @@ export async function generateAiReview(
     actorIsAdmin
   );
 
+  const exerciseEntryId = session.completion?.exercise_entry_id ?? null;
+  const [matchedActivity, dayReadiness] = await Promise.all([
+    exerciseEntryId
+      ? trainingPlanRepository.getCompactExerciseEntry(
+          actingUserId,
+          exerciseEntryId
+        )
+      : Promise.resolve(null),
+    trainingPlanRepository.getDayReadinessMetrics(
+      actingUserId,
+      session.scheduled_date
+    ),
+  ]);
+
   const context = {
     planned: {
       scheduled_date: session.scheduled_date,
@@ -129,15 +143,17 @@ export async function generateAiReview(
       notes: session.completion?.notes ?? null,
       adherence_score: session.completion?.adherence_score ?? null,
       matched_by: session.completion?.matched_by ?? null,
-      has_linked_activity: !!session.completion?.exercise_entry_id,
+      has_linked_activity: !!exerciseEntryId,
     },
+    matched_activity: matchedActivity,
+    day_readiness: dayReadiness,
   };
 
   const result = await dispatchAiRequest({
     provider,
     networkPolicy,
     prompt:
-      'You are a running coach reviewing one workout for SparkyFitness. Compare the planned prescription to the athlete report and any matched activity signal. If no watch/activity was linked, review from the athlete notes and score only — do not invent Garmin data. Write 2-5 short sentences. Output ONLY JSON matching the schema.\n\n' +
+      'You are a running coach reviewing one workout for SparkyFitness. Compare the planned prescription to the athlete report, any matched_activity (distance, duration, HR, calories), and day_readiness (training readiness, body battery low, RHR, sleep score, overnight HRV). If physiology looks depleted (low readiness/BB, poor sleep, elevated RHR), acknowledge recovery risk even when the athlete completed the session. If no watch/activity was linked, review from the athlete notes, score, and day_readiness only — do not invent Garmin data. Write 2-5 short sentences. Output ONLY JSON matching the schema.\n\n' +
       JSON.stringify(context),
     jsonSchema: REVIEW_SCHEMA,
     schemaName: 'training_session_ai_review',
