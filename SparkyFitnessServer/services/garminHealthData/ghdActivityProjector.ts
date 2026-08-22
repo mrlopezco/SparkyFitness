@@ -259,7 +259,9 @@ async function projectOneActivity(
     entry_date: entryDate,
     entry_time: entryTime,
     notes: `GHD Activity: ${activity.name || activityType} (${activityType})`,
-    distance: distanceKm !== null ? distanceKm * 1000 : null,
+    // exercise_entries.distance is kilometers (Diary convertDistance from 'km';
+    // Training aliases it as distance_km). Projection already emits distance_km.
+    distance: distanceKm,
     avg_heart_rate:
       asFiniteNumber(activity.avg_heart_rate) !== null
         ? Math.round(asFiniteNumber(activity.avg_heart_rate) as number)

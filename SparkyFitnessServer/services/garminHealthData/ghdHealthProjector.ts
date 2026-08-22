@@ -59,6 +59,7 @@ async function projectDailyMetrics(
         active_calories: asInteger(row.active_calories),
         bmr_calories: asInteger(row.bmr_calories),
         total_calories: asInteger(row.total_calories),
+        total_distance_meters: asFiniteNumber(row.total_distance_meters),
         moderate_intensity_minutes: asInteger(row.moderate_intensity_minutes),
         vigorous_intensity_minutes: asInteger(row.vigorous_intensity_minutes),
         resting_heart_rate: asInteger(row.resting_heart_rate),
@@ -127,6 +128,9 @@ async function projectSleep(
         light_sleep_seconds: sleep.light_sleep_seconds,
         rem_sleep_seconds: sleep.rem_sleep_seconds,
         awake_sleep_seconds: sleep.awake_sleep_seconds,
+        avg_overnight_hrv: asFiniteNumber(sleep.avg_overnight_hrv),
+        resting_heart_rate: asInteger(sleep.resting_heart_rate),
+        average_spo2_value: asFiniteNumber(sleep.average_spo2_value),
         source: GHD_SOURCE_PROVIDER,
         stage_events,
       });

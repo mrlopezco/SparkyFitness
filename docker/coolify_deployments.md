@@ -51,8 +51,6 @@ These must persist across redeploys (Coolify persistent storage or host paths):
 | `SPARKY_FITNESS_ADMIN_EMAIL` | Your admin user email |
 | `TZ` | e.g. `America/Denver` |
 | `NGINX_RATE_LIMIT` | e.g. `5r/s` |
-| `GARMIN_SERVICE_PORT` | `8000` (default) |
-| `GARMIN_SERVICE_IS_CN` | `false` unless China region |
 | `GHD_MICROSERVICE_URL` | `http://sparkyfitness-ghd:8001` (default) |
 | `GHD_SERVICE_PORT` | `8001` (default) |
 
@@ -67,12 +65,12 @@ openssl rand -hex 32
 - Compose publishes the frontend as `${SPARKY_FITNESS_FRONTEND_PORT:-3004}` → nginx `${NGINX_LISTEN_PORT:-80}`.
 - Point Coolify’s HTTP proxy / domain at the **frontend** service (or that published port).
 - Set `SPARKY_FITNESS_FRONTEND_URL` to the same public HTTPS URL Coolify assigns.
-- Backend and Garmin stay on the internal `sparkyfitness-network`; nginx proxies API traffic to `sparkyfitness-server:3010`.
+- Backend and GHD stay on the internal `sparkyfitness-network`; nginx proxies API traffic to `sparkyfitness-server:3010`. Classic Garmin Connect sidecar is **not** deployed on this fork.
 
 ## Deploy workflow
 
 1. Push commits to the branch Coolify watches.
-2. Coolify rebuilds `sparkyfitness-server`, `sparkyfitness-frontend`, `sparkyfitness-garmin`, and `sparkyfitness-ghd` from this repo’s Dockerfiles, then recreates containers.
+2. Coolify rebuilds `sparkyfitness-server`, `sparkyfitness-frontend`, and `sparkyfitness-ghd` from this repo’s Dockerfiles, then recreates containers.
 3. After Dockerfile or dependency changes, force a rebuild in Coolify if auto-deploy did not pick up cache-busting (Redeploy / Rebuild without cache).
 
 Local dry-run of compose resolution (optional, from a machine with Docker):
@@ -88,7 +86,6 @@ docker compose -f docker/docker-compose.coolify.yml config
 | `sparkyfitness-db` | `postgres:18.3-alpine` |
 | `sparkyfitness-server` | Build `docker/Dockerfile.backend` |
 | `sparkyfitness-frontend` | Build `docker/Dockerfile.frontend` |
-| `sparkyfitness-garmin` | Build `docker/Dockerfile.garmin_microservice` |
 | `sparkyfitness-ghd` | Build `docker/Dockerfile.ghd_microservice` |
 
 ## Pitfalls
@@ -96,6 +93,5 @@ docker compose -f docker/docker-compose.coolify.yml config
 - **Do not swap back to Hub images** (`codewithcj/*`) or fork changes will not ship.
 - **Do not rotate** `SPARKY_FITNESS_API_ENCRYPTION_KEY` or `BETTER_AUTH_SECRET` after production data / 2FA exists unless you accept lockouts and re-linking providers.
 - **`DB_PATH` must be durable.** If the path is empty or ephemeral, redeploys wipe the database.
-- Garmin depends on DB + server; if the API cannot reach Garmin, check `GARMIN_MICROSERVICE_URL` (default `http://sparkyfitness-garmin:8000`) and container logs.
-- GHD sidecar needs durable `GHD_DATA_PATH`; if the Node API cannot reach it, check `GHD_MICROSERVICE_URL` (default `http://sparkyfitness-ghd:8001`) and `sparkyfitness-ghd` logs.
+- GHD sidecar needs durable `GHD_DATA_PATH`; if the Node API cannot reach it, check `GHD_MICROSERVICE_URL` (default `http://sparkyfitness-ghd:8001`) and `sparkyfitness-ghd` logs. This fork does not run `sparkyfitness-garmin`.
 - `SPARKY_FITNESS_FRONTEND_URL` must match the browser origin (scheme + host + port) or auth/CORS will fail.

@@ -1,5 +1,6 @@
 import { getClient } from '../db/poolManager.js';
 import { todayInZone, addDays } from '@workspace/shared';
+import { SLEEP_SOURCE_RANK_SQL } from '../services/garminHealthData/garminSourcePreference.js';
 /**
  * Get sleep history for calculations
  * @param {string} userId
@@ -40,6 +41,14 @@ async function getSleepHistory(userId: any, days = 90, timezone = 'UTC') {
       WHERE se.user_id = $1
         AND se.entry_date >= $2
         AND se.duration_in_seconds > 0
+        AND se.id IN (
+          SELECT DISTINCT ON (entry_date) id
+          FROM sleep_entries
+          WHERE user_id = $1
+            AND entry_date >= $2
+            AND duration_in_seconds > 0
+          ORDER BY entry_date, ${SLEEP_SOURCE_RANK_SQL}
+        )
       ORDER BY se.entry_date DESC`,
       [userId, cutoffDate]
     );

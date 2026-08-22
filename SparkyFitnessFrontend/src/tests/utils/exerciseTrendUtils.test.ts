@@ -288,7 +288,7 @@ describe('extractTelemetryActivityEntries', () => {
     ).toEqual(['hk-run']);
   });
 
-  it.each([['garmin'], ['garmin_fit'], ['strava']])(
+  it.each([['garmin'], ['garmin_fit'], ['garmin_health_data'], ['strava']])(
     'still cards a %s entry that carries no telemetry flag',
     (providerName) => {
       // These pipelines only ever write activities that have telemetry, so they

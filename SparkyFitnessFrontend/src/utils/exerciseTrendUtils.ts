@@ -265,6 +265,7 @@ export const extractTelemetryActivityEntries = (
   const TELEMETRY_PROVIDERS = new Set([
     'garmin',
     'garmin_fit',
+    'garmin_health_data',
     'strava',
     'healthkit',
     'health connect',

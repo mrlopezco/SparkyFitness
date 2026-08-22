@@ -14,6 +14,7 @@ export const ghdDailyMetricSchema = z.object({
   active_calories: nullableNumber,
   bmr_calories: nullableNumber,
   total_calories: nullableNumber,
+  total_distance_meters: nullableNumber,
   floors_ascended: nullableNumber,
   floors_descended: nullableNumber,
   moderate_intensity_minutes: nullableNumber,

@@ -63,7 +63,7 @@ All services:
 docker compose --env-file .env.local -f docker/docker-compose.dev.yml logs -f
 ```
 
-One service (`sparkyfitness-db`, `sparkyfitness-server`, `sparkyfitness-frontend`, `sparkyfitness-garmin`, `sparkyfitness-ghd`):
+One service (`sparkyfitness-db`, `sparkyfitness-server`, `sparkyfitness-frontend`, `sparkyfitness-ghd`):
 
 ```powershell
 docker compose --env-file .env.local -f docker/docker-compose.dev.yml logs -f sparkyfitness-server
@@ -76,6 +76,12 @@ docker compose --env-file .env.local -f docker/docker-compose.dev.yml up --build
 docker compose --env-file .env.local -f docker/docker-compose.dev.yml logs -f sparkyfitness-ghd
 ```
 
+Remove an orphaned classic Garmin container (no longer in compose):
+
+```powershell
+docker compose --env-file .env.local -f docker/docker-compose.dev.yml up -d --remove-orphans
+docker rm -f sparkyfitness-garmin
+```
 ## Rebuild a single service
 
 ```powershell
@@ -100,7 +106,7 @@ Bind mounts under `docker/docker_volume/`:
 - `backup/` — server backups
 - `ghd_data/` — GHD per-user SQLite warehouses + Garmin tokens
 
-Source code is bind-mounted for hot reload (`SparkyFitnessServer`, `SparkyFitnessFrontend`, `SparkyFitnessGarmin`, `SparkyFitnessGhd`). Container `node_modules` use anonymous volumes so the host does not overwrite them.
+Source code is bind-mounted for hot reload (`SparkyFitnessServer`, `SparkyFitnessFrontend`, `SparkyFitnessGhd`). Container `node_modules` use anonymous volumes so the host does not overwrite them. Classic `SparkyFitnessGarmin` remains in the repo for upstream merge safety but is **not** composed on this fork.
 
 ## Windows notes
 

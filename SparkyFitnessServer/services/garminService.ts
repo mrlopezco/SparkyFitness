@@ -26,6 +26,7 @@ import {
   processGarminSleepData,
   processGarminNutritionData,
 } from './garmin/garminHealthProcessor.js';
+import { isGhdActiveOwner } from './garminHealthData/ghdOwnership.js';
 
 /**
  * Main orchestrator for syncing all Garmin telemetry and health data streams for a given user.
@@ -64,7 +65,19 @@ async function syncGarminData(
     nutrition: null,
   };
 
+  // Fork: when GHD owns wearables, classic must not write wellness/activities.
+  const ghdOwns = await isGhdActiveOwner(userId);
+  if (ghdOwns) {
+    log(
+      'info',
+      `[garminService] GHD is active for ${userId}; skipping classic wellness and activity writes.`
+    );
+    results.health = { skipped: true, reason: 'ghd_owns_wellness' };
+    results.activities = { skipped: true, reason: 'ghd_owns_activities' };
+  }
+
   // Phase 1: Health and Wellness — runs independently
+  if (!ghdOwns) {
   try {
     log('info', '[garminService] Fetching Health and Wellness data...');
     const healthWellnessData =
@@ -172,8 +185,10 @@ async function syncGarminData(
           : String(healthError),
     };
   }
+  } // end if (!ghdOwns) Phase 1
 
-  // Phase 2: Activities and Workouts — always runs
+  // Phase 2: Activities and Workouts — skipped when GHD owns
+  if (!ghdOwns) {
   try {
     log('info', '[garminService] Fetching Activities and Workouts data...');
     const activitiesData =
@@ -217,6 +232,7 @@ async function syncGarminData(
           : String(activitiesError),
     };
   }
+  } // end if (!ghdOwns) Phase 2
 
   // Phase 3: Nutrition Diary — runs independently
   try {

@@ -48,7 +48,9 @@ services:
       SPARKY_FITNESS_EMAIL_USER: ${SPARKY_FITNESS_EMAIL_USER:-}
       SPARKY_FITNESS_EMAIL_PASS: ${SPARKY_FITNESS_EMAIL_PASS:-}
       SPARKY_FITNESS_EMAIL_FROM: ${SPARKY_FITNESS_EMAIL_FROM:-}
-      GARMIN_MICROSERVICE_URL: ${GARMIN_MICROSERVICE_URL:-http://sparkyfitness-garmin:${GARMIN_SERVICE_PORT:-8000}} # Garmin microservice URL
+      # Classic Garmin Connect sidecar is not deployed on this fork (use GHD).
+      # GARMIN_MICROSERVICE_URL: ${GARMIN_MICROSERVICE_URL:-}
+      GHD_MICROSERVICE_URL: ${GHD_MICROSERVICE_URL:-http://sparkyfitness-ghd:8001}
       HTTP_PROXY: ${HTTP_PROXY:-} # Optional forward proxy for the server's outbound requests
       HTTPS_PROXY: ${HTTPS_PROXY:-}
       NO_PROXY: ${NO_PROXY:-}
@@ -114,24 +116,6 @@ services:
     restart: always
     depends_on:
       - sparkyfitness-server # Frontend depends on the server
-      #- sparkyfitness-garmin # Frontend depends on Garmin microservice. Enable if you are using Garmin Connect features.
-
-  # Garmin integration is still work in progress. Enable once table is ready.
-  # sparkyfitness-garmin:
-  #   image: codewithcj/sparkyfitness_garmin:latest
-  #   container_name: sparkyfitness-garmin
-  #   environment:
-  #     GARMIN_MICROSERVICE_URL: http://sparkyfitness-garmin:${GARMIN_SERVICE_PORT}
-  #     GARMIN_SERVICE_PORT: ${GARMIN_SERVICE_PORT}
-  #     GARMIN_SERVICE_IS_CN: ${GARMIN_SERVICE_IS_CN}  # set to true for China region. Everything else should be false. Optional - defaults to false
-  #     PUID: 1000
-  #     GUID: 1000
-  #   networks:
-  #     - sparkyfitness-network
-  #   restart: unless-stopped
-  #   depends_on:
-  #     - sparkyfitness-db
-  #     - sparkyfitness-server
 
 networks:
   sparkyfitness-network:

@@ -76,6 +76,8 @@ export async function ensureGhdProviderLinked(
     provider_type: GHD_PROVIDER_TYPE,
     user_id: userId,
     is_active: true,
+    // Non-manual so hourly keep-alive cron actually runs (create defaults to manual).
+    sync_frequency: 'hourly',
     base_url: process.env.GHD_MICROSERVICE_URL || 'http://sparkyfitness-ghd:8001',
   };
   if (email) {
@@ -93,6 +95,34 @@ export async function ensureGhdProviderLinked(
   return (await externalProviderRepository.createExternalDataProvider(
     updateData
   )) as ExternalProviderRow;
+}
+
+export async function recordGhdSyncMeta(args: {
+  userId: string;
+  providerId: string | null;
+  startDate: string;
+  endDate: string;
+  stats: Record<string, unknown>;
+  status?: 'success' | 'error';
+  errorSummary?: string | null;
+}): Promise<void> {
+  const {
+    userId,
+    providerId,
+    startDate,
+    endDate,
+    stats,
+    status = 'success',
+    errorSummary = null,
+  } = args;
+  const syncRunId = await insertSyncRun(userId, providerId, startDate, endDate);
+  await finishSyncRun(userId, syncRunId, status, stats, errorSummary);
+  if (providerId) {
+    await externalProviderRepository.updateProviderLastSync(
+      providerId,
+      new Date()
+    );
+  }
 }
 
 async function insertSyncRun(
@@ -319,6 +349,7 @@ const garminHealthDataService = {
   ensureGhdProviderLinked,
   resolveActiveGhdProvider,
   unlinkGhdProvider,
+  recordGhdSyncMeta,
   GHD_PROVIDER_TYPE,
   GHD_PROVIDER_NAME,
 };

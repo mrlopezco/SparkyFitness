@@ -8,6 +8,7 @@ import {
   DailyHealthMetrics,
   DailyHealthMetricsInitializer,
 } from '@workspace/shared';
+import { HEALTH_SOURCE_PROVIDER_RANK_SQL } from '../services/garminHealthData/garminSourcePreference.js';
 
 /** Minimal client surface needed to run a parameterised statement within a caller-owned transaction. */
 export interface HealthMetricSamplesDbClient {
@@ -351,10 +352,12 @@ export async function getDailyHealthMetrics(
 ): Promise<DailyHealthMetrics[]> {
   const client = await getClient(actingUserId);
   try {
+    // One row per calendar day: prefer garmin_health_data over classic garmin.
     const res = (await client.query(
-      `SELECT * FROM daily_health_metrics 
-       WHERE user_id = $1 AND entry_date BETWEEN $2 AND $3 
-       ORDER BY entry_date ASC`,
+      `SELECT DISTINCT ON (entry_date) *
+       FROM daily_health_metrics
+       WHERE user_id = $1 AND entry_date BETWEEN $2 AND $3
+       ORDER BY entry_date ASC, ${HEALTH_SOURCE_PROVIDER_RANK_SQL} ASC`,
       [userId, startDate, endDate]
     )) as { rows: DailyHealthMetrics[] };
     return res.rows;

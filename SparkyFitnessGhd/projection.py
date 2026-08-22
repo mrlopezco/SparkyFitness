@@ -158,6 +158,7 @@ def _empty_daily(day: str) -> dict[str, Any]:
         "active_calories": None,
         "bmr_calories": None,
         "total_calories": None,
+        "total_distance_meters": None,
         "floors_ascended": None,
         "floors_descended": None,
         "moderate_intensity_minutes": None,
@@ -364,6 +365,62 @@ def _project_daily_metrics(
             row = row_for(day)
             if row["resting_heart_rate"] is None:
                 row["resting_heart_rate"] = _num(r["resting_heart_rate"])
+
+    # GHD warehouse has no Connect-style daily calorie summary; roll up activity
+    # calories/distance onto the local calendar day (timezone_offset_hours).
+    if _table_exists(conn, "activity"):
+        cal_by_day: dict[str, float] = {}
+        bmr_by_day: dict[str, float] = {}
+        dist_by_day: dict[str, float] = {}
+        # Expand UTC query window so evening local activities near day edges are included.
+        for r in conn.execute(
+            """
+            SELECT start_ts, timezone_offset_hours, calories, bmr_calories, distance
+            FROM activity
+            WHERE date(start_ts) >= date(?, '-1 day')
+              AND date(start_ts) <= date(?, '+1 day')
+            """,
+            (start, end),
+        ):
+            day = _local_date_str(r["start_ts"], r["timezone_offset_hours"])
+            if not day or day < start or day > end:
+                continue
+            cal = _num(r["calories"])
+            if cal is not None:
+                cal_by_day[day] = cal_by_day.get(day, 0.0) + float(cal)
+            bmr = _num(r["bmr_calories"])
+            if bmr is not None:
+                bmr_by_day[day] = bmr_by_day.get(day, 0.0) + float(bmr)
+            dist = _num(r["distance"])
+            if dist is not None:
+                dist_by_day[day] = dist_by_day.get(day, 0.0) + float(dist)
+
+        for day, cal in cal_by_day.items():
+            row = row_for(day)
+            if row["active_calories"] is None:
+                row["active_calories"] = _num(cal)
+        for day, bmr in bmr_by_day.items():
+            row = row_for(day)
+            if row["bmr_calories"] is None:
+                row["bmr_calories"] = _num(bmr)
+        for day, dist in dist_by_day.items():
+            row = row_for(day)
+            if row["total_distance_meters"] is None:
+                row["total_distance_meters"] = _num(dist)
+        for day in set(cal_by_day) | set(bmr_by_day):
+            row = row_for(day)
+            if row["total_calories"] is None:
+                parts = [
+                    float(row["active_calories"])
+                    if row["active_calories"] is not None
+                    else None,
+                    float(row["bmr_calories"])
+                    if row["bmr_calories"] is not None
+                    else None,
+                ]
+                present = [p for p in parts if p is not None]
+                if present:
+                    row["total_calories"] = _num(sum(present))
 
     return [by_date[k] for k in sorted(by_date.keys())]
 

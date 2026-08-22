@@ -279,6 +279,14 @@ export async function advanceOneChunk(): Promise<boolean> {
       }
     );
 
+    await garminHealthDataService.recordGhdSyncMeta({
+      userId,
+      providerId: job.provider_id,
+      startDate: week.week_start,
+      endDate: week.week_end,
+      stats: { health, activities, history_import: true },
+    });
+
     fireAndForgetPostChunk(userId, week.week_start, week.week_end);
     return true;
   } catch (error: unknown) {

@@ -42,7 +42,6 @@ services:
       SPARKY_FITNESS_FRONTEND_URL: ${SPARKY_FITNESS_FRONTEND_URL:?Variable is required and must be set}
       SPARKY_FITNESS_DISABLE_SIGNUP: ${SPARKY_FITNESS_DISABLE_SIGNUP:-false}
       SPARKY_FITNESS_ADMIN_EMAIL: ${SPARKY_FITNESS_ADMIN_EMAIL:-}
-      GARMIN_MICROSERVICE_URL: ${GARMIN_MICROSERVICE_URL:-http://sparkyfitness-garmin:${GARMIN_SERVICE_PORT:-8000}}
       GHD_MICROSERVICE_URL: ${GHD_MICROSERVICE_URL:-http://sparkyfitness-ghd:8001}
       NODE_ENV: ${NODE_ENV:-production}
       TZ: ${TZ:-Etc/UTC}
@@ -78,25 +77,6 @@ services:
     networks:
       - sparkyfitness-network
     depends_on:
-      - sparkyfitness-server
-      - sparkyfitness-garmin
-
-  sparkyfitness-garmin:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.garmin_microservice
-    container_name: sparkyfitness-garmin
-    restart: unless-stopped
-    environment:
-      GARMIN_MICROSERVICE_URL: ${GARMIN_MICROSERVICE_URL:-http://sparkyfitness-garmin:${GARMIN_SERVICE_PORT:-8000}}
-      GARMIN_SERVICE_PORT: ${GARMIN_SERVICE_PORT:-8000}
-      GARMIN_SERVICE_IS_CN: ${GARMIN_SERVICE_IS_CN:-false}
-      PUID: 1000
-      GUID: 1000
-    networks:
-      - sparkyfitness-network
-    depends_on:
-      - sparkyfitness-db
       - sparkyfitness-server
 
   sparkyfitness-ghd:

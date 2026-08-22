@@ -90,6 +90,8 @@ describe('projectHealthFromProjection', () => {
         entry_date: '2026-08-20',
         source_provider: 'garmin_health_data',
         total_steps: 8421,
+        active_calories: 512,
+        total_distance_meters: 7200,
         recovery_time_hours: 3,
         acwr_ratio: 1.17,
       })
@@ -107,6 +109,9 @@ describe('projectHealthFromProjection', () => {
       expect.objectContaining({
         entry_date: '2026-08-20',
         source: 'garmin_health_data',
+        avg_overnight_hrv: 46,
+        resting_heart_rate: 50,
+        average_spo2_value: 96,
         stage_events: expect.arrayContaining([
           expect.objectContaining({ stage_type: 'deep' }),
         ]),

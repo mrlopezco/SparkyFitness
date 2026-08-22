@@ -6,6 +6,7 @@
       "active_calories": 512,
       "bmr_calories": 1600,
       "total_calories": 2112,
+      "total_distance_meters": 7200,
       "floors_ascended": 12,
       "floors_descended": 10,
       "moderate_intensity_minutes": 25,

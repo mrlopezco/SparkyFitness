@@ -119,6 +119,7 @@ describe('projectActivitiesFromProjection', () => {
         source_id: '24055640269',
         entry_date: '2026-08-20',
         calories_burned: 480,
+        distance: 7.2,
       }),
       'user-1',
       'garmin_health_data'
