@@ -5,6 +5,7 @@ export const MANUAL_SYNC_PROVIDERS = [
   'polar',
   'withings',
   'garmin',
+  'garmin_health_data',
   'hevy',
 ] as const;
 

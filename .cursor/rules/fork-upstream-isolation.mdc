@@ -1,0 +1,32 @@
+---
+description: Keep fork features rebase-friendly vs upstream SparkyFitness
+alwaysApply: true
+---
+
+# Fork isolation (upstream merge safety)
+
+This repo is a **fork** of `CodeWithCJ/SparkyFitness`. Custom work must stay easy to rebase/merge when upstream updates.
+
+## Branch roles
+
+- `main` — mirror upstream; do not land fork-only features here
+- `deploy` — Coolify production branch
+- `feature/*` — fork features (e.g. AI meal log); merge into `deploy`, not upstream PRs unless asked
+
+## Isolation rules for new work
+
+- Prefer **new files** (routes, services, pages, hooks, schemas, prompts, tests) over rewriting upstream modules
+- Touch existing upstream files only with **thin hooks**: one import, one button, one `app.use`, one prop — never large refactors inside shared upstream code
+- Do **not** create a parallel `custom/` tree unless the user asks; keep domain files in normal package layout, but keep them additive
+- Extract shared helpers on the second duplication; put reusable cascade/logic in dedicated services so chat + meal-log + food-draft share one path
+- Avoid drive-by renames, formatting sweeps, or “cleanup” of untouched upstream files — those fight merges
+- Migrations / RLS / shared Zod: follow package checklists; still prefer additive schema changes
+
+## When unsure
+
+Prefer: new endpoint + new UI dialog + 3-line mount in an existing file  
+Over: editing a large upstream service “in place” to bolt on behavior
+
+## Docs
+
+Update `docs/content/1.install/12.fork-ai-meal-log.md` (or a sibling fork note) when adding Coolify/ops-facing fork features.

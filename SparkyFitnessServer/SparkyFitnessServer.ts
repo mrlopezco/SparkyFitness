@@ -29,6 +29,7 @@ import preferenceRoutes from './routes/preferenceRoutes.js';
 import dashboardLayoutRoutes from './routes/dashboardLayoutRoutes.js';
 import nutrientDisplayPreferenceRoutes from './routes/nutrientDisplayPreferenceRoutes.js';
 import nutrientGoalPreferenceRoutes from './routes/nutrientGoalPreferenceRoutes.js';
+import modulePreferenceRoutes from './routes/modulePreferenceRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import measurementRoutes from './routes/measurementRoutes.js';
 import checkInPhotoRoutes from './routes/checkInPhotoRoutes.js';
@@ -50,6 +51,7 @@ import healthRoutes from './routes/healthRoutes.js';
 import externalProviderRoutes from './routes/externalProviderRoutes.js';
 import syncedDataRoutes from './routes/syncedDataRoutes.js';
 import garminRoutes from './routes/garminRoutes.js';
+import garminHealthDataRoutes from './routes/garminHealthDataRoutes.js';
 import withingsRoutes from './routes/withingsRoutes.js';
 import withingsDataRoutes from './routes/withingsDataRoutes.js';
 import fitbitRoutes from './routes/fitbitRoutes.js';
@@ -69,6 +71,9 @@ import onboardingRoutes from './routes/onboardingRoutes.js';
 import customNutrientRoutes from './routes/customNutrientRoutes.js';
 import aiUnitConversionRoutes from './routes/aiUnitConversionRoutes.js';
 import aiMealLogRoutes from './routes/aiMealLogRoutes.js';
+import trainingPlanRoutes from './routes/trainingPlanRoutes.js';
+import trainingCoachRoutes from './routes/trainingCoachRoutes.js';
+import trainingCheckInService from './services/trainingCheckInService.js';
 import allergenPreferenceRoutes from './routes/allergenPreferenceRoutes.js';
 import { applyMigrations } from './utils/dbMigrations.js';
 import { applyRlsPolicies } from './utils/applyRlsPolicies.js';
@@ -86,6 +91,9 @@ import { scheduleBackupsOnStartup } from './services/backupScheduler.js';
 import externalProviderRepository from './models/externalProviderRepository.js';
 import garminService from './services/garminService.js';
 import { getGarminSyncPhaseErrors } from './services/garminSyncResult.js';
+import garminHealthDataService from './services/garminHealthDataService.js';
+import ghdHistoryImportService from './services/ghdHistoryImportService.js';
+import ghdHistoryImportRepository from './models/ghdHistoryImportRepository.js';
 import fitbitService from './services/fitbitService.js';
 import ouraService from './services/ouraService.js';
 import googleHealthService from './services/googleHealthService.js';
@@ -487,6 +495,10 @@ app.get('/api/ping', (_req, res) =>
 app.use('/api/chat', chatRoutes);
 app.use('/api/ai', aiUnitConversionRoutes);
 app.use('/api/ai', aiMealLogRoutes);
+// Coach/fitness-test routes mount first: their static `/fitness-tests` and
+// `/ai/adjust` paths would otherwise be captured by trainingPlanRoutes' `/:id`.
+app.use('/api/training-plans', trainingCoachRoutes);
+app.use('/api/training-plans', trainingPlanRoutes);
 app.use('/api/foods', foodRoutes);
 app.use('/api/favorites', favoritesRoutes);
 app.use('/api/v2/foods', v2FoodRoutes);
@@ -502,6 +514,7 @@ app.use('/api/user-preferences', preferenceRoutes);
 app.use('/api/dashboard-layouts', dashboardLayoutRoutes);
 app.use('/api/preferences/nutrient-display', nutrientDisplayPreferenceRoutes);
 app.use('/api/nutrient-goal-preferences', nutrientGoalPreferenceRoutes);
+app.use('/api/module-preferences', modulePreferenceRoutes);
 app.use('/api/measurements', measurementRoutes);
 app.use('/api/measurements/check-in-photos', checkInPhotoRoutes);
 app.use('/api/goals', goalRoutes);
@@ -525,6 +538,7 @@ app.use('/api/health', healthRoutes);
 app.use('/api/external-providers', externalProviderRoutes);
 app.use('/api/synced-data', syncedDataRoutes);
 app.use('/api/integrations/garmin', garminRoutes);
+app.use('/api/integrations/garmin-health-data', garminHealthDataRoutes);
 app.use('/api/withings', withingsRoutes);
 app.use('/api/version', versionRoutes);
 app.use('/api/announcement', announcementRoutes);
@@ -657,6 +671,62 @@ const scheduleGarminSyncs = async () => {
       }
     } catch (error) {
       console.error('[CRON] scheduleGarminSyncs task failed:', error);
+    }
+  });
+};
+// Fork: Garmin Health Data (GHD) keep-alive sync — skip users with an active history job
+const scheduleGarminHealthDataSyncs = async () => {
+  cron.schedule('0 * * * *', async () => {
+    try {
+      const busyUsers =
+        await ghdHistoryImportRepository.listUserIdsWithActiveHistoryJobs();
+      const providers =
+        await externalProviderRepository.getProvidersByType(
+          'garmin_health_data'
+        );
+      for (const provider of providers) {
+        if (!provider.is_active || provider.sync_frequency === 'manual') {
+          continue;
+        }
+        if (busyUsers.has(provider.user_id)) {
+          log(
+            'info',
+            `[CRON] Skipping GHD keep-alive for ${provider.user_id}; history import active`
+          );
+          continue;
+        }
+        try {
+          const result = await garminHealthDataService.syncGarminHealthData(
+            provider.user_id,
+            'scheduled'
+          );
+          if (result.status !== 'success') {
+            console.warn(
+              `[CRON] GHD sync completed with error for user ${provider.user_id}: ${result.error ?? 'unknown'}`
+            );
+          }
+        } catch (error) {
+          console.error(
+            `[CRON] GHD sync failed for user ${provider.user_id}:`,
+            error
+          );
+        }
+      }
+    } catch (error) {
+      console.error('[CRON] scheduleGarminHealthDataSyncs task failed:', error);
+    }
+  });
+};
+// Fork: GHD history import — advance up to 2 week-chunks per minute
+const scheduleGhdHistoryImports = async () => {
+  cron.schedule('*/1 * * * *', async () => {
+    try {
+      const advanced = await ghdHistoryImportService.advanceActiveJobs(2);
+      if (advanced > 0) {
+        log('info', `[CRON] GHD history import advanced ${advanced} chunk(s)`);
+      }
+    } catch (error) {
+      console.error('[CRON] scheduleGhdHistoryImports task failed:', error);
     }
   });
 };
@@ -828,6 +898,17 @@ const scheduleHevySyncs = async () => {
     }
   });
 };
+// Training plan weekly coach check-ins (fork feature). The scan itself never
+// throws; this wrapper only guards against a scheduling-level failure.
+const scheduleTrainingPlanCheckIns = async () => {
+  cron.schedule('0 7 * * *', async () => {
+    try {
+      await trainingCheckInService.runWeeklyCheckIns();
+    } catch (error) {
+      console.error('[CRON] Training plan check-in scan failed:', error);
+    }
+  });
+};
 applyMigrations()
   .then(applyRlsPolicies)
   .then(async () => {
@@ -850,12 +931,15 @@ applyMigrations()
     scheduleSessionCleanup();
     scheduleWithingsSyncs();
     scheduleGarminSyncs();
+    scheduleGarminHealthDataSyncs();
+    scheduleGhdHistoryImports();
     scheduleFitbitSyncs();
     scheduleOuraSyncs();
     schedulePolarSyncs();
     scheduleStravaSyncs();
     scheduleGoogleHealthSyncs();
     scheduleHevySyncs();
+    scheduleTrainingPlanCheckIns();
     if (process.env.SPARKY_FITNESS_ADMIN_EMAIL) {
       const adminUser = await userRepository.findUserByEmail(
         process.env.SPARKY_FITNESS_ADMIN_EMAIL

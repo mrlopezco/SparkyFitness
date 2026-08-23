@@ -60,6 +60,9 @@ SparkyFitnessServer/temp_uploads/
 # Garmin microservice specific
 SparkyFitnessGarmin/mock_data/
 
+# GHD sidecar local warehouses + tokens (never commit)
+SparkyFitnessGhd/data/
+
 # Fitbit mock data (cached API responses)
 SparkyFitnessServer/mock_data/
 

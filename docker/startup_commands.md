@@ -63,12 +63,25 @@ All services:
 docker compose --env-file .env.local -f docker/docker-compose.dev.yml logs -f
 ```
 
-One service (`sparkyfitness-db`, `sparkyfitness-server`, `sparkyfitness-frontend`, `sparkyfitness-garmin`):
+One service (`sparkyfitness-db`, `sparkyfitness-server`, `sparkyfitness-frontend`, `sparkyfitness-ghd`):
 
 ```powershell
 docker compose --env-file .env.local -f docker/docker-compose.dev.yml logs -f sparkyfitness-server
 ```
 
+GHD sidecar only:
+
+```powershell
+docker compose --env-file .env.local -f docker/docker-compose.dev.yml up --build -d sparkyfitness-ghd
+docker compose --env-file .env.local -f docker/docker-compose.dev.yml logs -f sparkyfitness-ghd
+```
+
+Remove an orphaned classic Garmin container (no longer in compose):
+
+```powershell
+docker compose --env-file .env.local -f docker/docker-compose.dev.yml up -d --remove-orphans
+docker rm -f sparkyfitness-garmin
+```
 ## Rebuild a single service
 
 ```powershell
@@ -82,6 +95,7 @@ docker compose --env-file .env.local -f docker/docker-compose.dev.yml up --build
 | Frontend (Vite) | http://localhost:8080 |
 | Backend API | http://localhost:3010 |
 | Postgres | `localhost:5432` |
+| GHD sidecar | http://localhost:8001 |
 
 ## Persistent local data
 
@@ -90,8 +104,9 @@ Bind mounts under `docker/docker_volume/`:
 - `postgresql/` — database files
 - `uploads/` — profile / exercise images
 - `backup/` — server backups
+- `ghd_data/` — GHD per-user SQLite warehouses + Garmin tokens
 
-Source code is bind-mounted for hot reload (`SparkyFitnessServer`, `SparkyFitnessFrontend`, `SparkyFitnessGarmin`). Container `node_modules` use anonymous volumes so the host does not overwrite them.
+Source code is bind-mounted for hot reload (`SparkyFitnessServer`, `SparkyFitnessFrontend`, `SparkyFitnessGhd`). Container `node_modules` use anonymous volumes so the host does not overwrite them. Classic `SparkyFitnessGarmin` remains in the repo for upstream merge safety but is **not** composed on this fork.
 
 ## Windows notes
 

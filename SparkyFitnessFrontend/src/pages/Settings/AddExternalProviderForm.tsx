@@ -23,6 +23,10 @@ import {
   useSyncHevyMutation,
 } from '@/hooks/Integrations/useIntegrations';
 import {
+  resolveGhdMfaId,
+  useLoginGarminHealthDataMutation,
+} from '@/hooks/Integrations/useGarminHealthData';
+import {
   useCreateExternalProviderMutation,
   useExternalProviderTypesQuery,
   useCreateGlobalProvider,
@@ -40,6 +44,7 @@ interface AddExternalProviderFormProps {
   setShowAddForm: (show: boolean) => void;
   onAddSuccess: () => void;
   onGarminMfaRequired?: (clientState: string) => void; // New prop for MFA handling
+  onGhdMfaRequired?: (mfaId: string) => void;
   isAdminMode?: boolean;
 }
 
@@ -48,6 +53,7 @@ const AddExternalProviderForm = ({
   setShowAddForm,
   onAddSuccess,
   onGarminMfaRequired = () => {},
+  onGhdMfaRequired = () => {},
   isAdminMode = false,
 }: AddExternalProviderFormProps) => {
   const { user } = useAuth();
@@ -57,6 +63,10 @@ const AddExternalProviderForm = ({
     useSyncHevyMutation();
   const { mutateAsync: loginGarmin, isPending: isLoggingInGarmin } =
     useLoginGarminMutation();
+  const {
+    mutateAsync: loginGarminHealthData,
+    isPending: isLoggingInGhd,
+  } = useLoginGarminHealthDataMutation();
   const { mutateAsync: createExternalProvider, isPending: isCreatingProvider } =
     useCreateExternalProviderMutation();
   const { mutateAsync: createGlobalProvider, isPending: isCreatingGlobal } =
@@ -78,6 +88,7 @@ const AddExternalProviderForm = ({
   const isAnyIntegrationPending =
     isSyncingHevy ||
     isLoggingInGarmin ||
+    isLoggingInGhd ||
     isCreatingProvider ||
     isCreatingGlobal ||
     isConnectingFitbit ||
@@ -162,6 +173,31 @@ const AddExternalProviderForm = ({
         }
 
         createdProvider = garminData.provider as CreatedProvider;
+      } else if (newProvider.provider_type === 'garmin_health_data') {
+        const ghdData = await loginGarminHealthData({
+          email: newProvider.email || '',
+          password: newProvider.password || '',
+        });
+        const mfaId = resolveGhdMfaId(ghdData);
+
+        if (ghdData?.status === 'needs_mfa' && mfaId) {
+          onGhdMfaRequired(mfaId);
+          toast({
+            title: 'Garmin Health Data MFA Required',
+            description:
+              'Please complete Multi-Factor Authentication for Garmin Health Data.',
+          });
+          setShowAddForm(false);
+          return;
+        }
+
+        if (ghdData?.status !== 'success') {
+          throw new Error(
+            ghdData?.error || ghdData?.message || 'Garmin Health Data login failed.'
+          );
+        }
+
+        createdProvider = ghdData.provider as CreatedProvider;
       } else {
         const appId =
           newProvider.provider_type === 'yazio'
@@ -221,6 +257,8 @@ const AddExternalProviderForm = ({
         provider_type: 'openfoodfacts',
         app_id: '',
         app_key: '',
+        email: '',
+        password: '',
         is_active: false,
         base_url: '',
         sync_frequency: 'manual',
@@ -294,6 +332,8 @@ const AddExternalProviderForm = ({
                       value as ExternalDataProvider['provider_type'],
                     app_id: '',
                     app_key: '',
+                    email: '',
+                    password: '',
                     base_url: '',
                     garmin_connect_status: 'disconnected',
                     garmin_last_status_check: '',

@@ -3,6 +3,8 @@ export const SOURCE_LABELS: Record<string, string> = {
   healthkit: 'Apple Health',
   health_connect: 'Health Connect',
   garmin: 'Garmin',
+  garmin_fit: 'Garmin',
+  garmin_health_data: 'Garmin Health Data',
   withings: 'Withings',
   fitbit: 'Fitbit',
   googlehealth: 'Google Health',

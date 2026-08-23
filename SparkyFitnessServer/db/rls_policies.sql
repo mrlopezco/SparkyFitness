@@ -102,13 +102,29 @@ BEGIN
     'health_appointments',
     'user_custom_moods',
     'user_mood_display_preferences',
+    'user_module_preferences',
     'passkey_registration_tickets',
     'exercise_entry_laps',
     'exercise_entry_gps_points',
     'exercise_entry_hr_zones',
     'health_metric_samples',
     'vitals_entries',
-    'daily_health_metrics'
+    'daily_health_metrics',
+    'training_plans',
+    'training_goals',
+    'training_commitments',
+    'training_plan_sessions',
+    'training_session_completions',
+    'training_athlete_snapshots',
+    'training_coach_sessions',
+    'training_coach_messages',
+    'training_coach_session_summaries',
+    'training_coach_memories',
+    'training_fitness_tests',
+    'ghd_sync_runs',
+    'ghd_activity_map',
+    'ghd_history_import_jobs',
+    'ghd_history_import_weeks'
   ]::text[])
   LOOP
     EXECUTE 'ALTER TABLE public.' || quote_ident(table_name) || ' ENABLE ROW LEVEL SECURITY;';
@@ -641,6 +657,17 @@ SELECT create_library_policy('workout_presets', 'is_public', ARRAY['can_view_exe
 -- Do NOT apply create_library_policy or create_diary_policy to medication tables.
 SELECT create_owner_policy('user_medication_display_preferences');
 
+-- Fork: module visibility toggles (nav/route gating). Tier 1 — owner-only.
+SELECT create_owner_policy('user_module_preferences');
+
+-- Fork: Garmin Health Data sync/history metadata (migration
+-- 20260821220000_garmin_health_data_provider.sql). Tier 1 — owner-only;
+-- same privacy posture as other wearable sync credentials/metadata.
+SELECT create_owner_policy('ghd_sync_runs');
+SELECT create_owner_policy('ghd_activity_map');
+SELECT create_owner_policy('ghd_history_import_jobs');
+SELECT create_owner_policy('ghd_history_import_weeks');
+
 -- Cycle & Pregnancy hub (see migration 20260702180000_add_cycle_tracking_schema.sql).
 -- Tier 1 — owner-only. Deliberately stricter than medications: this reproductive
 -- health data is NEVER shared or delegated in v1 (no family/caregiver access).
@@ -880,6 +907,76 @@ WITH CHECK (
 -- Shared View-Only (Tier 2)
 SELECT create_checkin_policy('fasting_logs');
 SELECT create_diary_policy('user_meal_visibilities');
+
+-- Training Plan domain (diary-permission): plans, goals, commitments, sessions, snapshots, coach.
+SELECT create_diary_policy('training_plans');
+SELECT create_diary_policy('training_goals');
+SELECT create_diary_policy('training_commitments');
+SELECT create_diary_policy('training_plan_sessions');
+SELECT create_diary_policy('training_athlete_snapshots');
+SELECT create_diary_policy('training_coach_sessions');
+SELECT create_diary_policy('training_coach_memories');
+SELECT create_diary_policy('training_fitness_tests');
+
+DROP POLICY IF EXISTS select_policy ON public.training_session_completions;
+DROP POLICY IF EXISTS modify_policy ON public.training_session_completions;
+CREATE POLICY select_policy ON public.training_session_completions FOR SELECT TO PUBLIC
+USING (EXISTS (
+  SELECT 1 FROM public.training_plan_sessions tps
+  WHERE tps.id = training_session_completions.plan_session_id
+    AND has_diary_read_access(tps.user_id)
+));
+CREATE POLICY modify_policy ON public.training_session_completions FOR ALL TO PUBLIC
+USING (EXISTS (
+  SELECT 1 FROM public.training_plan_sessions tps
+  WHERE tps.id = training_session_completions.plan_session_id
+    AND has_diary_access(tps.user_id)
+))
+WITH CHECK (EXISTS (
+  SELECT 1 FROM public.training_plan_sessions tps
+  WHERE tps.id = training_session_completions.plan_session_id
+    AND has_diary_access(tps.user_id)
+));
+
+DROP POLICY IF EXISTS select_policy ON public.training_coach_messages;
+DROP POLICY IF EXISTS modify_policy ON public.training_coach_messages;
+CREATE POLICY select_policy ON public.training_coach_messages FOR SELECT TO PUBLIC
+USING (EXISTS (
+  SELECT 1 FROM public.training_coach_sessions tcs
+  WHERE tcs.id = training_coach_messages.session_id
+    AND has_diary_read_access(tcs.user_id)
+));
+CREATE POLICY modify_policy ON public.training_coach_messages FOR ALL TO PUBLIC
+USING (EXISTS (
+  SELECT 1 FROM public.training_coach_sessions tcs
+  WHERE tcs.id = training_coach_messages.session_id
+    AND has_diary_access(tcs.user_id)
+))
+WITH CHECK (EXISTS (
+  SELECT 1 FROM public.training_coach_sessions tcs
+  WHERE tcs.id = training_coach_messages.session_id
+    AND has_diary_access(tcs.user_id)
+));
+
+DROP POLICY IF EXISTS select_policy ON public.training_coach_session_summaries;
+DROP POLICY IF EXISTS modify_policy ON public.training_coach_session_summaries;
+CREATE POLICY select_policy ON public.training_coach_session_summaries FOR SELECT TO PUBLIC
+USING (EXISTS (
+  SELECT 1 FROM public.training_coach_sessions tcs
+  WHERE tcs.id = training_coach_session_summaries.session_id
+    AND has_diary_read_access(tcs.user_id)
+));
+CREATE POLICY modify_policy ON public.training_coach_session_summaries FOR ALL TO PUBLIC
+USING (EXISTS (
+  SELECT 1 FROM public.training_coach_sessions tcs
+  WHERE tcs.id = training_coach_session_summaries.session_id
+    AND has_diary_access(tcs.user_id)
+))
+WITH CHECK (EXISTS (
+  SELECT 1 FROM public.training_coach_sessions tcs
+  WHERE tcs.id = training_coach_session_summaries.session_id
+    AND has_diary_access(tcs.user_id)
+));
 SELECT create_checkin_policy('sleep_need_calculations');
 SELECT create_checkin_policy('daily_sleep_need');
 -- Day classification is a sleep/wellness (check-in) feature, used only by the

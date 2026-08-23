@@ -1,5 +1,6 @@
 import { getClient } from '../db/poolManager.js';
 import { log } from '../config/logging.js';
+import { preferGhdOverClassicGarminByDate } from '../services/garminHealthData/garminSourcePreference.js';
 
 async function upsertSleepEntry(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -584,7 +585,7 @@ async function getSleepEntriesByUserIdAndDateRange(
             ORDER BY se.entry_date DESC;
         `;
     const result = await client.query(query, [userId, startDate, endDate]);
-    return result.rows;
+    return preferGhdOverClassicGarminByDate(result.rows);
   } catch (error) {
     log(
       'error',

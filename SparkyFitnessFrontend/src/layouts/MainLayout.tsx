@@ -12,6 +12,7 @@ import {
   Settings as SettingsIcon,
   LogOut,
   Dumbbell, // Used for Exercises
+  ClipboardList, // Used for Training Plan
   Target, // Used for Goals
   Pill, // Used for Medications
   Shield,
@@ -31,8 +32,6 @@ import AddComp from '@/layouts/AddComp';
 import ThemeToggle from '@/components/ThemeToggle';
 import GlobalSyncButton from '@/components/GlobalSyncButton';
 import ProfileSwitcher from '@/components/ProfileSwitcher';
-import GitHubStarCounter from '@/components/GitHubStarCounter';
-import GitHubSponsorButton from '@/components/GitHubSponsorButton';
 import GlobalNotificationIcon from '@/components/GlobalNotificationIcon';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
@@ -42,8 +41,32 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useMealTypes } from '@/hooks/Diary/useMealTypes';
 import { useCurrentVersionQuery } from '@/hooks/useGeneralQueries';
 import { useCycleSettings } from '@/hooks/useCycle';
+import { useEffectiveModules } from '@/hooks/Settings/useModulePreferences';
+import {
+  FORK_MODULE_DEFINITIONS,
+  isPathAllowedByModules,
+} from '@/config/forkModules';
 import { cn } from '@/lib/utils';
 import { getGridClassNormal } from '@/utils/layout';
+
+function isNavItemAllowedByModules(
+  value: string,
+  modules: Record<string, boolean>
+): boolean {
+  const path = value.startsWith('/') ? value : `/${value}`;
+  for (const def of FORK_MODULE_DEFINITIONS) {
+    if (
+      def.addCompValues.includes(value) ||
+      def.routePrefixes.includes(path) ||
+      def.routePrefixes.some(
+        (prefix) => path === prefix || path.startsWith(`${prefix}/`)
+      )
+    ) {
+      return modules[def.id] !== false;
+    }
+  }
+  return true;
+}
 
 interface AddCompItem {
   value: string;
@@ -85,6 +108,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 
   // Fetch cycle settings to determine tab visibility
   const { data: cycleSettings } = useCycleSettings();
+  const modules = useEffectiveModules();
 
   const handleSignOut = async () => {
     info(loggingLevel, 'MainLayout: Attempting to sign out.');
@@ -109,7 +133,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     const items: AddCompItem[] = [];
     if (!isActingOnBehalf) {
       // Keep this order consistent with the desktop tab order in availableTabs:
-      // Check-In, Cycle, Medications, Foods, Exercises, Goals.
+      // Check-In, Cycle, Medications, Foods, Exercises, Training, Goals.
       items.push({ value: 'checkin', label: 'Check-In', icon: Activity });
       if (cycleSettings?.enabled) {
         items.push({
@@ -134,6 +158,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           label: t('exercise.title', 'Exercises'),
           icon: Dumbbell,
         },
+        {
+          value: 'training',
+          label: t('nav.training', 'Training'),
+          icon: ClipboardList,
+        },
         { value: 'goals', label: 'Goals', icon: Target },
         {
           value: 'foodlog',
@@ -155,8 +184,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         });
       }
     }
-    return items;
-  }, [isActingOnBehalf, hasWritePermission, cycleSettings, t]);
+    return items.filter((item) =>
+      isNavItemAllowedByModules(item.value, modules)
+    );
+  }, [isActingOnBehalf, hasWritePermission, cycleSettings, t, modules]);
 
   // Map meal type names to icons
   const getMealTypeIcon = useCallback((name: string): LucideIcon => {
@@ -245,6 +276,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           label: t('exercise.title', 'Exercises'),
           icon: Dumbbell,
         },
+        {
+          value: '/training',
+          label: t('nav.training', 'Training'),
+          icon: ClipboardList,
+        },
         { value: '/goals', label: t('nav.goals'), icon: Target },
         { value: '/settings', label: t('nav.settings'), icon: SettingsIcon }
       );
@@ -277,7 +313,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     if (user?.role === 'admin' && !isActingOnBehalf) {
       tabs.push({ value: '/admin', label: t('nav.admin'), icon: Shield });
     }
-    return tabs;
+    return tabs.filter((tab) => isNavItemAllowedByModules(tab.value, modules));
   }, [
     isActingOnBehalf,
     hasPermission,
@@ -286,6 +322,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     user?.role,
     t,
     cycleSettings,
+    modules,
   ]);
 
   const availableMobileTabs = useMemo(() => {
@@ -339,7 +376,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     if (user?.role === 'admin' && !isActingOnBehalf) {
       mobileTabs.push({ value: '/admin', label: t('nav.admin'), icon: Shield });
     }
-    return mobileTabs;
+    return mobileTabs.filter((tab) =>
+      isNavItemAllowedByModules(tab.value, modules)
+    );
   }, [
     isActingOnBehalf,
     hasPermission,
@@ -348,6 +387,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     user?.role,
     isAddCompOpen,
     t,
+    modules,
   ]);
 
   const handleNavigateFromAddComp = useCallback(
@@ -389,7 +429,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   // on behalf, a delegate only has a subset of tabs; landing on a disallowed
   // route (e.g. staying on Diary after switching to a checkin-only profile)
   // would otherwise mount that page and fire requests that 403.
+  // Also redirect when a fork module is disabled for the owner.
   const isCurrentPathAllowed = useMemo(() => {
+    if (!isPathAllowedByModules(location.pathname, modules)) {
+      return false;
+    }
     if (!isActingOnBehalf || availableTabs.length === 0) {
       return true;
     }
@@ -407,18 +451,19 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         currentPath === tab.value || currentPath.startsWith(tab.value + '/')
       );
     });
-  }, [isActingOnBehalf, availableTabs, location.pathname]);
+  }, [isActingOnBehalf, availableTabs, location.pathname, modules]);
 
   useEffect(() => {
     if (!isCurrentPathAllowed) {
-      const fallbackTab = availableTabs[0]?.value;
-      if (fallbackTab) {
-        debug(
-          loggingLevel,
-          `MainLayout: Redirecting from unauthorized path ${location.pathname} to ${fallbackTab}`
-        );
-        navigate(fallbackTab, { replace: true });
-      }
+      const fallbackTab =
+        availableTabs.find((tab) =>
+          isNavItemAllowedByModules(tab.value, modules)
+        )?.value ?? '/';
+      debug(
+        loggingLevel,
+        `MainLayout: Redirecting from unauthorized path ${location.pathname} to ${fallbackTab}`
+      );
+      navigate(fallbackTab, { replace: true });
     }
   }, [
     isCurrentPathAllowed,
@@ -426,6 +471,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     location.pathname,
     navigate,
     loggingLevel,
+    modules,
   ]);
 
   const selectedDate = new URLSearchParams(location.search).get('date');
@@ -447,12 +493,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
             <h1 className="text-xl sm:text-2xl font-bold text-foreground dark:text-slate-300">
               SparkyFitness
             </h1>
-            {!isMobile && (
-              <>
-                <GitHubStarCounter owner="CodeWithCJ" repo="SparkyFitness" />
-                <GitHubSponsorButton owner="CodeWithCJ" />
-              </>
-            )}
           </div>
           <div className="flex items-center gap-2">
             <ProfileSwitcher />
@@ -598,10 +638,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       <footer className="text-center text-muted-foreground text-sm py-4">
         {isMobile ? (
           <div className="flex flex-col items-center gap-2 mb-14">
-            <div className="flex justify-center gap-2">
-              <GitHubStarCounter owner="CodeWithCJ" repo="SparkyFitness" />
-              <GitHubSponsorButton owner="CodeWithCJ" />
-            </div>
             <div className="flex items-center gap-2">
               <button
                 type="button"

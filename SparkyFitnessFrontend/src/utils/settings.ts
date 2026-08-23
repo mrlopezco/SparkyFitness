@@ -11,6 +11,7 @@ export const providerRequirements: Record<string, string[]> = {
   fitbit: ['app_id', 'app_key'],
   googlehealth: ['app_id', 'app_key'],
   garmin: ['app_id', 'app_key'],
+  garmin_health_data: ['email', 'password'],
   polar: ['app_id', 'app_key'],
   strava: ['app_id', 'app_key'],
   usda: ['app_key'],
@@ -24,6 +25,10 @@ const providerFieldLabels: Record<string, Record<string, string>> = {
     app_key: 'YAZIO password',
     yazio_client_id: 'YAZIO Client ID',
     yazio_client_secret: 'YAZIO Client Secret',
+  },
+  garmin_health_data: {
+    email: 'Garmin email',
+    password: 'Garmin password',
   },
 };
 

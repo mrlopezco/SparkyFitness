@@ -1,5 +1,6 @@
 import { ExternalDataProvider } from '@/pages/Settings/ExternalProviderSettings';
 import { apiCall } from '@/api/api';
+import { fetchGarminHealthDataStatus } from '@/api/Integrations/garminHealthDataApi';
 import { DataProvider } from '@/types/settings';
 import { ExternalProviderTypes } from '@workspace/shared';
 
@@ -497,6 +498,16 @@ export const getEnrichedProviders = async (): Promise<
             enriched.has_token = status.isLinked;
             break;
           }
+          case 'garmin_health_data': {
+            const status = await fetchGarminHealthDataStatus();
+            enriched.garmin_connect_status = status.isLinked
+              ? 'linked'
+              : 'disconnected';
+            enriched.garmin_last_status_check = status.lastUpdated;
+            enriched.garmin_token_expires = status.tokenExpiresAt;
+            enriched.has_token = status.isLinked;
+            break;
+          }
           case 'withings': {
             if (provider.has_token) {
               const status = await fetchWithingsStatus(provider.id);
@@ -553,6 +564,12 @@ export const getEnrichedProviders = async (): Promise<
           error
         );
         if (provider.provider_type === 'garmin') {
+          enriched.garmin_connect_status = 'disconnected';
+          enriched.garmin_last_status_check = null;
+          enriched.garmin_token_expires = null;
+          enriched.has_token = false;
+        }
+        if (provider.provider_type === 'garmin_health_data') {
           enriched.garmin_connect_status = 'disconnected';
           enriched.garmin_last_status_check = null;
           enriched.garmin_token_expires = null;

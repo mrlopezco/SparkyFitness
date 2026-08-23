@@ -64,6 +64,8 @@ const SyncRangeDialog = ({
         return 'Polar';
       case 'garmin':
         return 'Garmin';
+      case 'garmin_health_data':
+        return 'Garmin Health Data';
       case 'hevy':
         return 'Hevy';
       case 'withings':

@@ -9,6 +9,7 @@ import { log } from '../config/logging.js';
 import moment from 'moment';
 import garminService from '../services/garminService.js';
 import { getGarminSyncPhaseErrors } from '../services/garminSyncResult.js';
+import ghdCoverageRepository from '../models/ghdCoverageRepository.js';
 const router = express.Router();
 router.use(express.json());
 // Date validation constants
@@ -524,6 +525,36 @@ router.post(
     }
   }
 );
+/**
+ * @swagger
+ * /integrations/garmin/coverage:
+ *   get:
+ *     summary: High-level imported data coverage for classic Garmin Connect
+ *     tags: [External Integrations]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Coverage summary.
+ */
+router.get(
+  '/coverage',
+  authenticate,
+  checkPermissionMiddleware('diary'),
+  async (req, res, next) => {
+    try {
+      const userId = req.userId;
+      const coverage = await ghdCoverageRepository.getProviderCoverage(
+        userId,
+        'garmin'
+      );
+      return res.status(200).json(coverage);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 /**
  * @swagger
  * /integrations/garmin/status:

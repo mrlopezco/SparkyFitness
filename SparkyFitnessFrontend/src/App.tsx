@@ -21,6 +21,7 @@ import AnnouncementDialog, {
   AnnouncementInfo,
 } from '@/components/AnnouncementDialog';
 import AppSetup from '@/components/AppSetup';
+import { ModuleRoute } from '@/components/ModuleRoute';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import {
@@ -70,6 +71,9 @@ const ExerciseDatabaseManager = lazyWithChunkRecovery(
 );
 const WorkoutPlaybackPage = lazyWithChunkRecovery(
   () => import('./pages/Diary/WorkoutPlaybackPage')
+);
+const TrainingPage = lazyWithChunkRecovery(
+  () => import('./pages/Training/TrainingPage')
 );
 const GoalsSettings = lazyWithChunkRecovery(
   () => import('./pages/Goals/Goals')
@@ -388,12 +392,29 @@ const router = createBrowserRouter([
           },
           {
             path: 'exercises',
-            Component: ExerciseDatabaseManager,
+            element: (
+              <ModuleRoute moduleId="exercises">
+                <ExerciseDatabaseManager />
+              </ModuleRoute>
+            ),
             ErrorBoundary: RouteErrorBoundary,
           },
           {
             path: 'workout-playback',
-            Component: WorkoutPlaybackPage,
+            element: (
+              <ModuleRoute moduleId="exercises">
+                <WorkoutPlaybackPage />
+              </ModuleRoute>
+            ),
+            ErrorBoundary: RouteErrorBoundary,
+          },
+          {
+            path: 'training',
+            element: (
+              <ModuleRoute moduleId="training_plan">
+                <TrainingPage />
+              </ModuleRoute>
+            ),
             ErrorBoundary: RouteErrorBoundary,
           },
           {
@@ -403,7 +424,11 @@ const router = createBrowserRouter([
           },
           {
             path: 'medications',
-            Component: Medications,
+            element: (
+              <ModuleRoute moduleId="medications">
+                <Medications />
+              </ModuleRoute>
+            ),
             ErrorBoundary: RouteErrorBoundary,
           },
           {

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-08-20_
+_Last updated: 2026-08-21_
 
 SparkyFitness Server is the backend API package for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessServer/`.
 
@@ -28,7 +28,7 @@ If a task also touches `shared/`, the frontend, or the mobile app, read the rele
 - Stack: Express 5, PostgreSQL via `pg`, Better Auth, Zod, TypeScript 5, Vitest 4, ESLint 10
 - Module system: ESM with `type: "module"` and `moduleResolution: "NodeNext"`
 - The package is now effectively TypeScript-first; almost all source files are `.ts`
-- Main domains: food and meal tracking, exercise logging, health and sleep data, sleep science, fasting, medications, mood, menstrual cycle and pregnancy, reporting, AI chat, onboarding, identity, admin tooling, and external provider integrations
+- Main domains: food and meal tracking, exercise logging, health and sleep data, sleep science, fasting, medications, mood, menstrual cycle and pregnancy, training plans (fork), reporting, AI chat, onboarding, identity, admin tooling, and external provider integrations
 
 ## Verified Commands
 
@@ -233,12 +233,22 @@ When searching, ignore noisy/generated directories unless you explicitly need th
   inspect `services/chatService.ts`, `ai/tools/`, and the matching domain service and repository
 - Quick AI meal log (NL diary logging):
   inspect `routes/aiMealLogRoutes.ts`, `services/aiMealLogService.ts`, and `services/foodNutritionLookupService.ts`
+- Training plan (fork: date-based plans, AI planner, adherence, coach chat, fitness tests):
+  inspect `routes/trainingPlanRoutes.ts` and `routes/trainingCoachRoutes.ts`, the `services/training*.ts` family, and `models/trainingPlanRepository.ts` / `models/trainingCoachRepository.ts` / `models/trainingFitnessTestRepository.ts`. See the training entries under Quick Routing for which file owns what.
 - Fasting or mood issue:
   inspect `routes/fastingRoutes.ts` / `routes/moodRoutes.ts` and `models/fastingRepository.ts` / `models/moodRepository.ts`
 - Medications, cycle, or pregnancy issue:
   inspect the matching v2 route (`routes/v2/medicationRoutes.ts`, `routes/v2/cycleRoutes.ts`, `routes/v2/pregnancyRoutes.ts`), its Zod schema in `schemas/`, then `services/cycleService.ts` / `services/pregnancyService.ts` and the `models/medication*Repository.ts` / `models/cycleRepository.ts` / `models/pregnancyRepository.ts` files
 - Sleep or sleep-science issue:
   inspect `routes/sleepRoutes.ts`, `routes/sleepScienceRoutes.ts`, `services/sleepAnalyticsService.ts`, `services/sleepScienceService.ts`, and the sleep repositories
+- Training plan issue (fork feature):
+  two routers mount on `/api/training-plans` — `routes/trainingCoachRoutes.ts` first (coach chat, session skip, `/ai/adjust`, `/fitness-tests`), then `routes/trainingPlanRoutes.ts` (plans, calendar, `/ai/propose`, `/ai/confirm`, adherence). Order matters: the coach router's static paths would otherwise be captured by the plan router's `/:id`. Both share `routes/trainingRouteHelpers.ts`
+- Training plan service or AI issue (fork feature):
+  inspect `services/trainingPlanService.ts` (orchestration), `services/trainingPlanAiService.ts` (propose/adjust/confirm), `services/trainingCoachService.ts` (coach turns, memories, summaries), `services/trainingAthleteSnapshotService.ts` (prompt context), `services/trainingRunningScience.ts` (pure pace derivation), `services/trainingAdherenceService.ts` (auto-matching), `services/trainingFitnessTestService.ts`, and `services/trainingCheckInService.ts` (daily 07:00 cron). Shared errors and provider resolution live in `services/trainingAiSupport.ts`; prompts live in `prompts/training-*.md`
+- Training plan persistence issue (fork feature):
+  inspect `models/trainingPlanRepository.ts`, `models/trainingCoachRepository.ts`, and `models/trainingFitnessTestRepository.ts`. `listActivePlansForScan` is the only training query on `getSystemClient()` and exists solely for the cron scan; every per-user read and write goes through `getClient(userId)`
+- Garmin Health Data (fork: GHD sidecar provider `garmin_health_data`):
+  inspect `routes/garminHealthDataRoutes.ts`, `services/garminHealthDataService.ts`, `services/ghdHistoryImportService.ts`, `models/ghdHistoryImportRepository.ts`, `integrations/garminHealthData/ghdMicroserviceClient.ts`, and `services/garminHealthData/*Projector.ts`. Hourly keep-alive + minutely history chunks are registered in `SparkyFitnessServer.ts`. Do not rewrite classic `garminService`.
 
 ## Architecture Resources
 

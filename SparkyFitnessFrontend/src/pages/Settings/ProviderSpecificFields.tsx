@@ -398,6 +398,47 @@ export const ProviderSpecificFields = ({
         </>
       )}
 
+      {provider.provider_type === 'garmin_health_data' && (
+        <>
+          <div>
+            <Label htmlFor="add-ghd-email">
+              {t('integrations.ghdEmailLabel', 'Garmin Email')}
+            </Label>
+            <Input
+              id="add-ghd-email"
+              type="email"
+              value={provider.email || ''}
+              onChange={(e) =>
+                setProvider((prev) => ({ ...prev, email: e.target.value }))
+              }
+              placeholder={t(
+                'integrations.ghdEmailPlaceholder',
+                'Enter your Garmin email'
+              )}
+              autoComplete="username"
+            />
+          </div>
+          <div>
+            <Label htmlFor="add-ghd-password">
+              {t('integrations.ghdPasswordLabel', 'Garmin Password')}
+            </Label>
+            <Input
+              id="add-ghd-password"
+              type="password"
+              value={provider.password || ''}
+              onChange={(e) =>
+                setProvider((prev) => ({ ...prev, password: e.target.value }))
+              }
+              placeholder={t(
+                'integrations.ghdPasswordPlaceholder',
+                'Enter your Garmin password'
+              )}
+              autoComplete="current-password"
+            />
+          </div>
+        </>
+      )}
+
       {['withings', 'fitbit', 'oura', 'googlehealth', 'polar'].includes(
         provider.provider_type || ''
       ) && (
@@ -465,7 +506,17 @@ export const ProviderSpecificFields = ({
           Ensure your Docker Compose is updated to include Garmin section.
           <br />
           Sparky Fitness does not store your Garmin email or password. They are
-          used only during login to obtain secure tokens.
+          used only during login to obtain secure tokens. Prefer classic Garmin
+          for nutrition / workout definitions.
+        </p>
+      )}
+
+      {provider.provider_type === 'garmin_health_data' && (
+        <p className="text-sm text-muted-foreground col-span-2">
+          {t(
+            'integrations.ghdAddHelp',
+            'Garmin Health Data provides a deep wellness and FIT activity archive for Training. After connecting, use Fill history gaps once, then set sync to daily. Keep classic Garmin linked if you still need nutrition sync. Credentials are used only to obtain tokens and are not stored.'
+          )}
         </p>
       )}
 

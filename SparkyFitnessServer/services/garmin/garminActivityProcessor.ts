@@ -19,6 +19,40 @@ import {
   UnknownRecord,
 } from './garminTelemetryExtractors.js';
 
+/**
+ * Skip classic Garmin activity import when GHD (or classic) already stored this
+ * Garmin activity id. Prevents same workout appearing twice on adjacent dates
+ * when GHD used UTC and classic used local time historically — and going forward
+ * when both providers sync the same window.
+ */
+async function activityAlreadyImported(
+  client: PoolClient,
+  userId: string,
+  activityId: string | number | null | undefined
+): Promise<boolean> {
+  if (activityId === null || activityId === undefined || activityId === '') {
+    return false;
+  }
+  const id = String(activityId);
+  const entryRes = await client.query(
+    `SELECT 1 FROM exercise_entries
+     WHERE user_id = $1
+       AND source_id = $2
+       AND source IN ('garmin', 'garmin_health_data')
+     LIMIT 1`,
+    [userId, id]
+  );
+  if (entryRes.rows.length > 0) return true;
+
+  const mapRes = await client.query(
+    `SELECT 1 FROM ghd_activity_map
+     WHERE user_id = $1 AND garmin_activity_id = $2
+     LIMIT 1`,
+    [userId, id]
+  );
+  return mapRes.rows.length > 0;
+}
+
 // Minimal shapes for the Garmin Connect JSON this processor actually reads.
 // Payloads arrive as untyped JSON from SparkyFitnessGarmin; anything not
 // listed here flows through to the telemetry extractors untouched.
@@ -285,6 +319,13 @@ export async function processGarminWorkoutSession(
   timezone = 'UTC'
 ) {
   const { activity, exercise_sets } = sessionData;
+  if (await activityAlreadyImported(client, userId, activity.activityId)) {
+    log(
+      'info',
+      `[garminActivityProcessor] Skipping workout session ${activity.activityId}; already imported`
+    );
+    return;
+  }
   const workoutName = activity.activityName || 'Garmin Workout Session';
   const entryDate = activity.startTimeLocal
     ? activity.startTimeLocal.substring(0, 10)
@@ -738,6 +779,13 @@ export async function processGarminSimpleActivity(
   timezone = 'UTC'
 ) {
   const { activity } = activityData;
+  if (await activityAlreadyImported(client, userId, activity.activityId)) {
+    log(
+      'info',
+      `[garminActivityProcessor] Skipping activity ${activity.activityId}; already imported`
+    );
+    return;
+  }
   const garminExerciseName =
     activity.activityType?.typeKey || 'Garmin Activity';
 

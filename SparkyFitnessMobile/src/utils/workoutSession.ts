@@ -114,6 +114,7 @@ const SOURCE_DISPLAY_NAMES: Record<string, string> = {
   'health connect': 'Health Connect',
   garmin: 'Garmin',
   garmin_fit: 'Garmin',
+  garmin_health_data: 'Garmin Health Data',
   strava: 'Strava',
   fitbit: 'Fitbit',
   withings: 'Withings',

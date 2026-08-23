@@ -1,0 +1,164 @@
+{
+  "daily_metrics": [
+    {
+      "date": "2026-08-20",
+      "steps": 8421,
+      "active_calories": 512,
+      "bmr_calories": 1600,
+      "total_calories": 2112,
+      "total_distance_meters": 7200,
+      "floors_ascended": 12,
+      "floors_descended": 10,
+      "moderate_intensity_minutes": 25,
+      "vigorous_intensity_minutes": 15,
+      "resting_heart_rate": 52,
+      "avg_stress": 28,
+      "max_stress": 71,
+      "body_battery_high": 88,
+      "body_battery_low": 21,
+      "body_battery_charged": 40,
+      "body_battery_drained": 55,
+      "vo2_max": 48.2,
+      "training_readiness_score": 72,
+      "acute_training_load": 210,
+      "chronic_training_load": 180,
+      "acwr": 1.17,
+      "recovery_time_minutes": 180
+    }
+  ],
+  "sleep": [
+    {
+      "entry_date": "2026-08-20",
+      "bedtime": "2026-08-19T23:10:00+00:00",
+      "wake_time": "2026-08-20T06:40:00+00:00",
+      "duration_in_seconds": 27000,
+      "time_asleep_in_seconds": 24600,
+      "sleep_score": 81,
+      "deep_sleep_seconds": 5400,
+      "light_sleep_seconds": 14400,
+      "rem_sleep_seconds": 4800,
+      "awake_sleep_seconds": 2400,
+      "avg_overnight_hrv": 46,
+      "resting_heart_rate": 50,
+      "average_spo2_value": 96,
+      "stages": [
+        {
+          "stage_type": "deep",
+          "start_time": "2026-08-19T23:30:00+00:00",
+          "end_time": "2026-08-20T01:00:00+00:00",
+          "duration_in_seconds": 5400
+        },
+        {
+          "stage_type": "light",
+          "start_time": "2026-08-20T01:00:00+00:00",
+          "end_time": "2026-08-20T05:00:00+00:00",
+          "duration_in_seconds": 14400
+        },
+        {
+          "stage_type": "rem",
+          "start_time": "2026-08-20T05:00:00+00:00",
+          "end_time": "2026-08-20T06:20:00+00:00",
+          "duration_in_seconds": 4800
+        }
+      ]
+    }
+  ],
+  "activities": [
+    {
+      "activity_id": "24055640269",
+      "name": "Morning Run",
+      "activity_type": "running",
+      "start_time": "2026-08-20T12:00:00Z",
+      "duration_minutes": 42.5,
+      "distance_km": 7.2,
+      "calories": 480,
+      "avg_heart_rate": 148,
+      "max_heart_rate": 172,
+      "steps": 6200,
+      "laps": [
+        {
+          "lap_index": 1,
+          "start_time": "2026-08-20T12:00:00Z",
+          "duration": 600,
+          "distance": 1600,
+          "avg_heart_rate": 140
+        }
+      ],
+      "gps_points": [
+        {
+          "t": "2026-08-20T12:00:00Z",
+          "lat": 40.7128,
+          "lon": -74.006,
+          "hr": 120,
+          "alt": 10,
+          "speed": 3.1,
+          "cad": 170
+        },
+        {
+          "t": "2026-08-20T12:01:00Z",
+          "lat": 40.713,
+          "lon": -74.0055,
+          "hr": 130,
+          "alt": 11,
+          "speed": 3.2,
+          "cad": 172
+        }
+      ],
+      "detail_data": {
+        "activity_type_id": 1
+      }
+    }
+  ],
+  "body_composition": [
+    {
+      "date": "2026-08-20",
+      "weight_kg": 72.4,
+      "bmi": 22.1,
+      "body_fat_percentage": 14.5,
+      "muscle_mass_kg": 58.2,
+      "bone_mass_kg": 3.1,
+      "body_water_percentage": 58.0
+    }
+  ],
+  "samples": {
+    "heart_rate": [
+      {
+        "date": "2026-08-20",
+        "points": [
+          { "t": "2026-08-20T12:00:00Z", "bpm": 120 },
+          { "t": "2026-08-20T12:01:00Z", "bpm": 130 }
+        ]
+      }
+    ],
+    "stress": [
+      {
+        "date": "2026-08-20",
+        "points": [{ "t": "2026-08-20T15:00:00Z", "level": 35 }]
+      }
+    ],
+    "body_battery": [
+      {
+        "date": "2026-08-20",
+        "points": [{ "t": "2026-08-20T08:00:00Z", "level": 70 }]
+      }
+    ],
+    "hrv": [
+      {
+        "date": "2026-08-20",
+        "points": [{ "t": "2026-08-20T04:00:00Z", "rmssd_ms": 48 }]
+      }
+    ],
+    "respiration": [
+      {
+        "date": "2026-08-20",
+        "points": [{ "t": "2026-08-20T04:30:00Z", "brpm": 14 }]
+      }
+    ],
+    "spo2": [
+      {
+        "date": "2026-08-20",
+        "points": [{ "t": "2026-08-20T04:45:00Z", "percentage": 97 }]
+      }
+    ]
+  }
+}
