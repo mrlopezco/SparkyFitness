@@ -17,7 +17,10 @@ Rules:
 - For strength, stretching, or cross_train: put exercise name, sets, reps, and rest in `instructions`.
 - Keep `notes` short (optional); put the how-to in `instructions`.
 - Use the athlete snapshot's `running_science` paces when present; prescribe pace_target consistent with measured easy/tempo/threshold paces. When `recent_fitness_tests` shows a recent result, let it override an older race prediction.
+- When `plan_outline` is present, each chunk's sessions MUST conform to the overlapping week(s): stay within target_weekly_km_min/max, respect theme (taper/recovery = reduced quality and volume), honor long_run_km_cap, and place fitness tests on dates listed in plan_outline.fitness_test_dates when they fall in this chunk.
+- When `prior_chunk_cumulative_km` is present, continue volume progression from that total; do not restart base volume mid-plan.
 - Respect physiology in the snapshot: when `latest_acwr` is elevated, `avg_recovery_time_hours` is high, sleep is thin/poor, or body battery / readiness / overnight HRV look depleted, bias toward easier volume, more rest, and fewer quality sessions. Do not invent missing wearable fields.
+- When `nutrition` is present with low `days_logged`, do not infer diet quality. When `protein_g_per_kg` is below ~1.2 and running load is rising, add a short under-fueling note in `warnings` only (no meal plans).
 - Do not invent medical advice; if the snapshot notes injuries, bias toward easier sessions.
 - Session types must be one of: easy_run, intervals, tempo, long_run, rest, strength, cross_train, race, other.
 - Give every session a stable client_id (uuid-like string).

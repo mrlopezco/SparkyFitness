@@ -4,6 +4,7 @@ import {
   trainingCommitmentIntensitySchema,
   trainingGoalTypeSchema,
   trainingPlanStatusSchema,
+  trainingPlanIntakePayloadSchema,
   trainingSessionPrescriptionSchema,
   trainingSessionStatusSchema,
   trainingSessionTypeSchema,
@@ -84,7 +85,7 @@ function parsePrescription(value: unknown): TrainingSessionPrescription {
 const PLAN_COLUMNS = `id, user_id, name, description, sport_focus,
     to_char(start_date, 'YYYY-MM-DD') AS start_date,
     to_char(target_date, 'YYYY-MM-DD') AS target_date,
-    status, notes, created_at, updated_at`;
+    status, notes, intake_payload, created_at, updated_at`;
 
 const GOAL_COLUMNS = `id, plan_id, goal_type, title,
     to_char(target_date, 'YYYY-MM-DD') AS target_date,
@@ -119,6 +120,7 @@ interface PlanRow {
   target_date: string;
   status: string;
   notes: string | null;
+  intake_payload: unknown | null;
   created_at: Timestamp;
   updated_at: Timestamp;
 }
@@ -193,6 +195,9 @@ interface SnapshotRow {
 }
 
 function mapPlan(row: PlanRow): TrainingPlan {
+  const intakeParsed = trainingPlanIntakePayloadSchema.safeParse(
+    row.intake_payload
+  );
   return {
     id: row.id,
     user_id: row.user_id,
@@ -203,6 +208,9 @@ function mapPlan(row: PlanRow): TrainingPlan {
     target_date: row.target_date,
     status: parseEnum(trainingPlanStatusSchema, row.status, 'draft'),
     notes: row.notes,
+    ...(row.intake_payload != null && intakeParsed.success
+      ? { intake_payload: intakeParsed.data }
+      : {}),
     created_at: toIso(row.created_at),
     updated_at: toIso(row.updated_at),
   };
@@ -485,6 +493,7 @@ const PLAN_UPDATE_COLUMNS: ReadonlyArray<keyof TrainingPlanUpdateRequest> = [
   'target_date',
   'status',
   'notes',
+  'intake_payload',
 ];
 
 async function updatePlan(
@@ -498,6 +507,11 @@ async function updatePlan(
   for (const column of PLAN_UPDATE_COLUMNS) {
     const value = updates[column];
     if (value === undefined) continue;
+    if (column === 'intake_payload') {
+      params.push(value === null ? null : JSON.stringify(value));
+      assignments.push(`intake_payload = $${params.length}::jsonb`);
+      continue;
+    }
     params.push(value);
     assignments.push(`${column} = $${params.length}`);
   }

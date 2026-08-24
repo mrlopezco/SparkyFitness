@@ -123,6 +123,18 @@ export const trainingPlanCreateRequestSchema = z.object({
   commitments: z.array(trainingCommitmentPayloadSchema).default([]),
 });
 
+export const trainingPlanIntakePayloadSchema = z.object({
+  training_years: z.number().nonnegative().nullable().optional(),
+  days_per_week: z.number().int().positive().nullable().optional(),
+  max_quality_days: z.number().int().nonnegative().nullable().optional(),
+  injury_notes: z.string().max(2000).nullable().optional(),
+  surface_preference: z.string().max(120).nullable().optional(),
+});
+
+export type TrainingPlanIntakePayload = z.infer<
+  typeof trainingPlanIntakePayloadSchema
+>;
+
 export const trainingPlanUpdateRequestSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   description: z.string().max(4000).nullable().optional(),
@@ -131,6 +143,7 @@ export const trainingPlanUpdateRequestSchema = z.object({
   target_date: dayStringSchema.optional(),
   status: trainingPlanStatusSchema.optional(),
   notes: z.string().max(4000).nullable().optional(),
+  intake_payload: trainingPlanIntakePayloadSchema.nullable().optional(),
 });
 
 export const trainingGoalSchema = trainingGoalPayloadSchema.extend({
@@ -208,6 +221,7 @@ export const trainingPlanSchema = z.object({
   target_date: dayStringSchema,
   status: trainingPlanStatusSchema,
   notes: z.string().nullable(),
+  intake_payload: trainingPlanIntakePayloadSchema.nullable().optional(),
   created_at: z.string(),
   updated_at: z.string(),
 });
@@ -322,6 +336,18 @@ export const trainingAthleteSnapshotPayloadSchema = z.object({
     )
     .optional(),
   notes: z.array(z.string()).optional(),
+  /** Rolling nutrition rollup from food diary (same window as snapshot). */
+  nutrition: z
+    .object({
+      days_logged: z.number().int().nonnegative(),
+      window_days: z.number().int().positive(),
+      avg_calories: z.number().nonnegative(),
+      avg_protein_g: z.number().nonnegative(),
+      avg_carbs_g: z.number().nonnegative(),
+      avg_fat_g: z.number().nonnegative(),
+      protein_g_per_kg: z.number().nullable().optional(),
+    })
+    .optional(),
 });
 
 export const trainingAthleteSnapshotSchema = z.object({
@@ -377,6 +403,34 @@ export const trainingPlanProposedFitnessTestSchema = z.object({
   notes: z.string().max(2000).nullable().optional(),
 });
 
+export const trainingPlanOutlineWeekThemeSchema = z.enum([
+  "base",
+  "build",
+  "peak",
+  "taper",
+  "recovery",
+]);
+
+export const trainingPlanOutlineWeekSchema = z.object({
+  week_index: z.number().int().positive(),
+  start_date: dayStringSchema,
+  end_date: dayStringSchema,
+  theme: trainingPlanOutlineWeekThemeSchema,
+  target_weekly_km_min: z.number().nonnegative().nullable().optional(),
+  target_weekly_km_max: z.number().nonnegative().nullable().optional(),
+  quality_sessions_per_week: z.number().int().nonnegative().nullable().optional(),
+  long_run_km_cap: z.number().nonnegative().nullable().optional(),
+  notes: z.string().max(500).nullable().optional(),
+});
+
+export const trainingPlanOutlineResponseSchema = z.object({
+  summary: z.string(),
+  weeks: z.array(trainingPlanOutlineWeekSchema).min(1),
+  fitness_test_dates: z.array(dayStringSchema).optional(),
+  taper_start_date: dayStringSchema.nullable().optional(),
+  warnings: z.array(z.string()).optional(),
+});
+
 export const trainingPlanProposeResponseSchema = z.object({
   plan_id: z.string().uuid(),
   summary: z.string(),
@@ -385,6 +439,8 @@ export const trainingPlanProposeResponseSchema = z.object({
   /** Optional fitness tests to schedule when the athlete confirms the proposal. */
   fitness_tests: z.array(trainingPlanProposedFitnessTestSchema).optional(),
   warnings: z.array(z.string()).optional(),
+  /** Macro periodization skeleton generated before day-level sessions. */
+  plan_outline: trainingPlanOutlineResponseSchema.optional(),
 });
 
 export const trainingPlanConfirmRequestSchema = z.object({
@@ -401,6 +457,36 @@ export const trainingPlanConfirmResponseSchema = z.object({
   session_ids: z.array(z.string().uuid()),
   fitness_test_ids: z.array(z.string().uuid()).optional(),
 });
+
+export const trainingFeasibilityResponseSchema = z.object({
+  plan_id: z.string().uuid(),
+  flags: z.array(z.string()),
+});
+
+export const trainingPlanHealthSchema = z.object({
+  plan_id: z.string().uuid(),
+  as_of_date: dayStringSchema,
+  days_to_target: z.number().int(),
+  last_7_days: z.object({
+    planned_run_km: z.number().nonnegative(),
+    completed_run_km: z.number().nonnegative(),
+    quality_planned: z.number().int().nonnegative(),
+    quality_completed: z.number().int().nonnegative(),
+    unmatched_planned: z.number().int().nonnegative(),
+    avg_execution_score: z.number().nullable(),
+    injury_skips: z.number().int().nonnegative(),
+    schedule_skips: z.number().int().nonnegative(),
+  }),
+  readiness_summary: z.string().nullable(),
+  acwr: z.number().nullable(),
+  fitness_test_stale: z.boolean(),
+  summary_lines: z.array(z.string()),
+});
+
+export type TrainingFeasibilityResponse = z.infer<
+  typeof trainingFeasibilityResponseSchema
+>;
+export type TrainingPlanHealth = z.infer<typeof trainingPlanHealthSchema>;
 
 export const trainingPlanErrorCodeSchema = z.enum([
   "invalid_request",
@@ -488,6 +574,12 @@ export type TrainingPlanProposeResponse = z.infer<
 >;
 export type TrainingPlanProposedFitnessTest = z.infer<
   typeof trainingPlanProposedFitnessTestSchema
+>;
+export type TrainingPlanOutlineWeek = z.infer<
+  typeof trainingPlanOutlineWeekSchema
+>;
+export type TrainingPlanOutlineResponse = z.infer<
+  typeof trainingPlanOutlineResponseSchema
 >;
 export type TrainingPlanConfirmRequest = z.infer<
   typeof trainingPlanConfirmRequestSchema

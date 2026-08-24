@@ -142,6 +142,12 @@ export default function TrainingPlanWorkspace({
               userNotes={coachNotes}
               onProposal={onProposal}
             />
+            <AdjustPlanButton
+              planId={planId}
+              userNotes={coachNotes}
+              adjustThisWeek
+              onProposal={onProposal}
+            />
           </div>
         </CardContent>
       </Card>

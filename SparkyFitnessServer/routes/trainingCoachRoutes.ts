@@ -218,12 +218,12 @@ router.post(
       return invalidRequest(res, validation.error.issues);
     }
     try {
-      const test = await trainingFitnessTestService.reportResult(
+      const outcome = await trainingFitnessTestService.reportResult(
         activeUserId(req),
         testId.data,
         validation.data
       );
-      return res.status(200).json(test);
+      return res.status(200).json(outcome);
     } catch (error) {
       const handled = respondWithDomainError(res, error);
       if (handled) return handled;

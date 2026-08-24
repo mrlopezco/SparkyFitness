@@ -213,6 +213,32 @@ export default function AthleteSnapshotDialog({
                 </Section>
               )}
 
+            {payload.nutrition && (
+              <Section title={t('training.snapshot.nutrition', 'Nutrition (7d)')}>
+                <Row
+                  label={t('training.snapshot.daysLogged', 'Days logged')}
+                  value={String(payload.nutrition.days_logged)}
+                />
+                <Row
+                  label={t('training.snapshot.avgCalories', 'Avg calories')}
+                  value={String(payload.nutrition.avg_calories)}
+                />
+                <Row
+                  label={t('training.snapshot.avgProtein', 'Avg protein')}
+                  value={`${payload.nutrition.avg_protein_g} g`}
+                />
+                {payload.nutrition.protein_g_per_kg != null && (
+                  <Row
+                    label={t(
+                      'training.snapshot.proteinPerKg',
+                      'Protein g/kg body weight'
+                    )}
+                    value={String(payload.nutrition.protein_g_per_kg)}
+                  />
+                )}
+              </Section>
+            )}
+
             {payload.weight && (
               <Section title={t('training.snapshot.weight', 'Weight')}>
                 <Row

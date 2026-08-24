@@ -126,6 +126,30 @@ export default function PlanProposalPanel({
             {proposal.weekly_volume_notes}
           </p>
         )}
+        {proposal.plan_outline && (
+          <div className="rounded-md border bg-muted/30 p-3 text-sm">
+            <p className="font-medium">
+              {t('training.review.outlineTitle', 'Macro plan outline')}
+            </p>
+            <p className="mt-1 text-muted-foreground">
+              {proposal.plan_outline.summary}
+            </p>
+            <ul className="mt-2 space-y-1">
+              {proposal.plan_outline.weeks.map((week) => (
+                <li key={week.week_index} className="text-muted-foreground">
+                  {t('training.review.outlineWeek', 'Week {{index}}', {
+                    index: week.week_index,
+                  })}{' '}
+                  ({week.start_date} – {week.end_date}): {week.theme}
+                  {week.target_weekly_km_min != null &&
+                  week.target_weekly_km_max != null
+                    ? ` · ${week.target_weekly_km_min}–${week.target_weekly_km_max} km`
+                    : null}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {(proposal.fitness_tests?.length ?? 0) > 0 && (
           <div className="rounded-md border border-dashed p-3 text-sm">
             <p className="font-medium">

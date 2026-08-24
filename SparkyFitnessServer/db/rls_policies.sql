@@ -121,6 +121,7 @@ BEGIN
     'training_coach_session_summaries',
     'training_coach_memories',
     'training_fitness_tests',
+    'training_coaching_signals',
     'ghd_sync_runs',
     'ghd_activity_map',
     'ghd_history_import_jobs',
@@ -917,6 +918,7 @@ SELECT create_diary_policy('training_athlete_snapshots');
 SELECT create_diary_policy('training_coach_sessions');
 SELECT create_diary_policy('training_coach_memories');
 SELECT create_diary_policy('training_fitness_tests');
+SELECT create_diary_policy('training_coaching_signals');
 
 DROP POLICY IF EXISTS select_policy ON public.training_session_completions;
 DROP POLICY IF EXISTS modify_policy ON public.training_session_completions;

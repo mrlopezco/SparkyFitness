@@ -20,6 +20,8 @@ import {
   createTrainingPlan,
   deleteTrainingPlan,
   exportTrainingPlan,
+  fetchTrainingPlanFeasibility,
+  fetchTrainingPlanHealth,
   getLatestAthleteSnapshot,
   getTrainingCalendar,
   getTrainingPlan,
@@ -360,5 +362,21 @@ export function useMatchTrainingAdherenceMutation() {
       errorMessage: 'Failed to match logged activities to planned sessions.',
       successMessage: 'Adherence updated.',
     },
+  });
+}
+
+export function useTrainingPlanFeasibility(planId: string | undefined) {
+  return useQuery({
+    queryKey: [...trainingPlanKeys.detail(planId ?? 'none'), 'feasibility'],
+    queryFn: () => fetchTrainingPlanFeasibility(planId!),
+    enabled: Boolean(planId),
+  });
+}
+
+export function useTrainingPlanHealth(planId: string | undefined) {
+  return useQuery({
+    queryKey: [...trainingPlanKeys.detail(planId ?? 'none'), 'planHealth'],
+    queryFn: () => fetchTrainingPlanHealth(planId!),
+    enabled: Boolean(planId),
   });
 }

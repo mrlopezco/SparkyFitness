@@ -646,6 +646,52 @@ router.post(
  *         description: Plan not found.
  */
 router.get(
+  '/:id/feasibility',
+  authenticate,
+  checkPermissionMiddleware('diary'),
+  async (req, res, next) => {
+    const planId = planIdSchema.safeParse(req.params.id);
+    if (!planId.success) {
+      return invalidRequest(res, planId.error.issues);
+    }
+    try {
+      const result = await trainingPlanService.getFeasibilityFlags(
+        activeUserId(req),
+        planId.data
+      );
+      return res.status(200).json(result);
+    } catch (error) {
+      const handled = respondWithDomainError(res, error);
+      if (handled) return handled;
+      next(error);
+    }
+  }
+);
+
+router.get(
+  '/:id/plan-health',
+  authenticate,
+  checkPermissionMiddleware('diary'),
+  async (req, res, next) => {
+    const planId = planIdSchema.safeParse(req.params.id);
+    if (!planId.success) {
+      return invalidRequest(res, planId.error.issues);
+    }
+    try {
+      const health = await trainingPlanService.getPlanHealth(
+        activeUserId(req),
+        planId.data
+      );
+      return res.status(200).json({ plan_health: health });
+    } catch (error) {
+      const handled = respondWithDomainError(res, error);
+      if (handled) return handled;
+      next(error);
+    }
+  }
+);
+
+router.get(
   '/:id/snapshots/latest',
   authenticate,
   checkPermissionMiddleware('diary'),

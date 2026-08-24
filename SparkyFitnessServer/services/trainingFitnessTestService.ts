@@ -1,4 +1,4 @@
-import { compareDays, daysBetween, todayInZone } from '@workspace/shared';
+import { addDays, compareDays, daysBetween, todayInZone } from '@workspace/shared';
 import type {
   TrainingFitnessTest,
   TrainingFitnessTestCreateRequest,
@@ -9,8 +9,15 @@ import trainingFitnessTestRepository, {
   type ListFitnessTestsFilter,
 } from '../models/trainingFitnessTestRepository.js';
 import trainingPlanRepository from '../models/trainingPlanRepository.js';
+import trainingAthleteSnapshotService from './trainingAthleteSnapshotService.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import { NotFoundError } from './trainingAiSupport.js';
+
+export interface FitnessTestReportOutcome {
+  test: TrainingFitnessTest;
+  suggest_adjust_from?: string;
+  suggest_adjust_to?: string;
+}
 
 /**
  * Orchestration for periodic fitness tests: ownership checks, scheduling, and
@@ -63,8 +70,8 @@ export async function reportResult(
   userId: string,
   testId: string,
   request: TrainingFitnessTestReportRequest
-): Promise<TrainingFitnessTest> {
-  await getTest(userId, testId);
+): Promise<FitnessTestReportOutcome> {
+  const existing = await getTest(userId, testId);
   const updated = await trainingFitnessTestRepository.reportResult(
     userId,
     testId,
@@ -79,7 +86,39 @@ export async function reportResult(
     'info',
     `[trainingFitnessTest] User ${userId} reported test ${testId} as ${request.status}.`
   );
-  return updated;
+
+  let suggest_adjust_from: string | undefined;
+  let suggest_adjust_to: string | undefined;
+
+  if (
+    request.status === 'completed' &&
+    existing.plan_id &&
+    request.result
+  ) {
+    try {
+      await trainingAthleteSnapshotService.rebuildSnapshot(
+        userId,
+        existing.plan_id
+      );
+      const tz = await loadUserTimezone(userId);
+      const today = todayInZone(tz);
+      suggest_adjust_from = today;
+      suggest_adjust_to = addDays(today, 13);
+    } catch (error) {
+      log(
+        'warn',
+        `[trainingFitnessTest] Snapshot rebuild after test report failed for user ${userId}:`,
+        error
+      );
+    }
+  }
+
+  return {
+    test: updated,
+    ...(suggest_adjust_from && suggest_adjust_to
+      ? { suggest_adjust_from, suggest_adjust_to }
+      : {}),
+  };
 }
 
 export async function deleteTest(

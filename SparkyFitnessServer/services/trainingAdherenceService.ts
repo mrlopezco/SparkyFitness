@@ -39,8 +39,44 @@ const DATE_SLIP_PENALTY = 0.9;
  */
 const UNKNOWN_VOLUME_SIMILARITY = 0.7;
 
-const SPORT_WEIGHT = 0.5;
-const VOLUME_WEIGHT = 0.5;
+const SPORT_WEIGHT = 0.4;
+const VOLUME_WEIGHT = 0.35;
+const PACE_WEIGHT = 0.25;
+
+/** Parses "M:SS /km" style targets into minutes per km. */
+export function parsePrescriptionPaceMinPerKm(
+  paceTarget: string | null | undefined
+): number | null {
+  if (!paceTarget?.trim()) return null;
+  const match = paceTarget.match(/(\d+)\s*:\s*(\d{1,2})/);
+  if (!match) return null;
+  const minutes = Number(match[1]);
+  const seconds = Number(match[2]);
+  if (!Number.isFinite(minutes) || !Number.isFinite(seconds)) return null;
+  return minutes + seconds / 60;
+}
+
+function actualPaceMinPerKm(entry: ActivityEntryRow): number | null {
+  if (
+    entry.distance_km == null ||
+    entry.distance_km <= 0 ||
+    entry.duration_minutes == null ||
+    entry.duration_minutes <= 0
+  ) {
+    return null;
+  }
+  return entry.duration_minutes / entry.distance_km;
+}
+
+function paceSimilarity(
+  prescription: TrainingSessionPrescription,
+  entry: ActivityEntryRow
+): number | null {
+  const target = parsePrescriptionPaceMinPerKm(prescription.pace_target);
+  const actual = actualPaceMinPerKm(entry);
+  if (target == null || actual == null) return null;
+  return similarity(target, actual);
+}
 
 /**
  * The sport a session type prescribes. `null` means "any activity counts"
@@ -135,9 +171,12 @@ export function scoreAdherence(
     return 0;
   }
 
+  const volumeSim = volumeSimilarity(session.prescription, entry);
+  const paceSim = paceSimilarity(session.prescription, entry);
   const score =
-    SPORT_WEIGHT +
-    VOLUME_WEIGHT * volumeSimilarity(session.prescription, entry);
+    paceSim != null
+      ? SPORT_WEIGHT + VOLUME_WEIGHT * volumeSim + PACE_WEIGHT * paceSim
+      : 0.5 + 0.5 * volumeSim;
   return dayGap === 0 ? score : score * DATE_SLIP_PENALTY;
 }
 

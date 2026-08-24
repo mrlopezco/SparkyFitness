@@ -1,15 +1,11 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   CalendarDays,
-  Download,
-  Flag,
   MessageSquare,
-  Plus,
+  Settings,
   Target,
   Timer,
-  Trash2,
-  Upload,
 } from 'lucide-react';
 import {
   todayInZone,
@@ -18,19 +14,9 @@ import {
   type TrainingPlanProposeResponse,
 } from '@workspace/shared';
 import { usePreferences } from '@/contexts/PreferencesContext';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import ConfirmationDialog from '@/components/ui/ConfirmationDialog';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
+import ConfirmationDialog from '@/components/ui/ConfirmationDialog';
 import {
-  useCreateAthleteSnapshotMutation,
   useDeleteTrainingPlanMutation,
   useExportTrainingPlanMutation,
   useImportTrainingPlanMutation,
@@ -40,24 +26,16 @@ import {
   useTrainingPlans,
   useUpdateTrainingPlanMutation,
 } from '@/hooks/Training/useTrainingPlans';
-import ActivePlanDetailsCard from './components/ActivePlanDetailsCard';
 import CoachPanel from './components/CoachPanel';
 import CreatePlanCard from './components/CreatePlanCard';
 import FitnessTestsPanel from './components/FitnessTestsPanel';
-import GoalsCommitmentsEditor from './components/GoalsCommitmentsEditor';
+import TrainingOverviewTab from './components/TrainingOverviewTab';
 import TrainingPlanWorkspace from './components/TrainingPlanWorkspace';
-import { SPORT_FOCUS_LABELS } from './trainingConstants';
-
-const SNAPSHOT_WINDOW_DAYS = 28;
+import TrainingSettingsTab from './components/TrainingSettingsTab';
+import { Button } from '@/components/ui/button';
 
 const TRAINING_TABS = [
   { id: 'overview', labelKey: 'training.tabs.overview', labelDefault: 'Overview', icon: Target },
-  {
-    id: 'goals',
-    labelKey: 'training.tabs.goals',
-    labelDefault: 'Goals & commitments',
-    icon: Flag,
-  },
   {
     id: 'plan',
     labelKey: 'training.tabs.plan',
@@ -76,6 +54,12 @@ const TRAINING_TABS = [
     labelDefault: 'Fitness tests',
     icon: Timer,
   },
+  {
+    id: 'settings',
+    labelKey: 'training.tabs.settings',
+    labelDefault: 'Settings',
+    icon: Settings,
+  },
 ] as const;
 
 type TrainingTabId = (typeof TRAINING_TABS)[number]['id'];
@@ -84,7 +68,6 @@ export default function TrainingPage() {
   const { t } = useTranslation();
   const { timezone } = usePreferences();
   const today = todayInZone(timezone);
-  const importInputRef = useRef<HTMLInputElement>(null);
 
   const [activeTab, setActiveTab] = useState<TrainingTabId>('overview');
   const [pickedPlanId, setPickedPlanId] = useState<string | null>(null);
@@ -128,7 +111,6 @@ export default function TrainingPage() {
     activePlanSummary?.id
   );
   const { data: snapshot } = useLatestAthleteSnapshot(activePlanSummary?.id);
-  const snapshotMutation = useCreateAthleteSnapshotMutation();
   const updateMutation = useUpdateTrainingPlanMutation();
   const deleteMutation = useDeleteTrainingPlanMutation();
   const adherenceMutation = useMatchTrainingAdherenceMutation();
@@ -170,7 +152,7 @@ export default function TrainingPage() {
       activate: false,
     });
     setPickedPlanId(result.plan.id);
-    setActiveTab('plan');
+    setActiveTab('settings');
   };
 
   return (
@@ -212,214 +194,56 @@ export default function TrainingPage() {
           value="overview"
           className="space-y-6 focus-visible:outline-none"
         >
-          <Card>
-            <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 space-y-0 pb-4">
-              <div>
-                <CardTitle className="text-xl font-bold tracking-tight sm:text-2xl">
-                  {t('training.plans.title', 'Your plans')}
-                </CardTitle>
-                <CardDescription className="mt-1.5">
-                  {t(
-                    'training.plans.description',
-                    'Create multiple plans if you like — only one can be active at a time.'
-                  )}
-                </CardDescription>
-              </div>
-              <Button onClick={() => setCreateOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                {t('training.create.open', 'New plan')}
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {plansLoading && (
-                <p className="text-sm text-muted-foreground">
-                  {t('training.plans.loading', 'Loading plans…')}
-                </p>
-              )}
-              {!plansLoading && plans.length === 0 && (
-                <p className="py-6 text-center text-sm italic text-muted-foreground">
-                  {t(
-                    'training.plans.empty',
-                    'No training plans yet. Create one to get started.'
-                  )}
-                </p>
-              )}
-              {currentPlans.map((plan) => (
-                <div
-                  key={plan.id}
-                  className={`flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 ${
-                    plan.id === selectedPlanId ? 'border-primary' : ''
-                  }`}
-                >
-                  <button
-                    type="button"
-                    className="flex-1 text-left"
-                    onClick={() => setPickedPlanId(plan.id)}
-                  >
-                    <p className="font-semibold">{plan.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {plan.start_date} → {plan.target_date} ·{' '}
-                      {t(
-                        `training.sportFocus.${plan.sport_focus}`,
-                        SPORT_FOCUS_LABELS[plan.sport_focus]
-                      )}
-                    </p>
-                  </button>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">
-                      {t(`training.planStatus.${plan.status}`, plan.status)}
-                    </Badge>
-                    {plan.status === 'draft' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={updateMutation.isPending}
-                        onClick={() =>
-                          updateMutation.mutate({
-                            planId: plan.id,
-                            payload: { status: 'active' },
-                          })
-                        }
-                      >
-                        {t('training.plans.activate', 'Activate')}
-                      </Button>
-                    )}
-                    {plan.status === 'active' && (
-                      <>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={updateMutation.isPending}
-                          onClick={() =>
-                            updateMutation.mutate({
-                              planId: plan.id,
-                              payload: { status: 'draft' },
-                            })
-                          }
-                        >
-                          {t('training.plans.deactivate', 'Deactivate')}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={adherenceMutation.isPending}
-                          onClick={() =>
-                            adherenceMutation.mutate({
-                              plan_id: plan.id,
-                              start_date: plan.start_date,
-                              end_date: plan.target_date,
-                            })
-                          }
-                        >
-                          {t('training.plans.syncAdherence', 'Match activities')}
-                        </Button>
-                      </>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={t('training.plans.delete', 'Delete plan')}
-                      onClick={() => setPlanPendingDelete(plan)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-              {pastPlans.length > 0 && (
-                <div className="space-y-1 border-t pt-3">
-                  <p className="text-xs font-semibold text-muted-foreground">
-                    {t('training.plans.past', 'Completed & archived')}
-                  </p>
-                  {pastPlans.map((plan) => (
-                    <button
-                      key={plan.id}
-                      type="button"
-                      className="block w-full text-left text-sm text-muted-foreground hover:text-foreground"
-                      onClick={() => setPickedPlanId(plan.id)}
-                    >
-                      {plan.name} · {plan.start_date} → {plan.target_date}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              <div className="flex flex-wrap items-center gap-2 border-t pt-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!selectedPlanId || exportMutation.isPending}
-                  onClick={handleExport}
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  {t('training.plans.export', 'Export JSON')}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={importMutation.isPending}
-                  onClick={() => importInputRef.current?.click()}
-                >
-                  <Upload className="mr-2 h-4 w-4" />
-                  {t('training.plans.import', 'Import JSON')}
-                </Button>
-                <input
-                  ref={importInputRef}
-                  type="file"
-                  accept="application/json,.json"
-                  className="hidden"
-                  onChange={handleImportFile}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <ActivePlanDetailsCard
+          <TrainingOverviewTab
+            activePlanId={activePlanSummary?.id}
             plan={activePlanDetail}
             snapshot={snapshot}
             today={today}
-            snapshotRefreshing={snapshotMutation.isPending}
-            onRefreshSnapshot={() => {
-              if (!activePlanSummary) return;
-              snapshotMutation.mutate({
-                planId: activePlanSummary.id,
-                payload: {
-                  as_of_date: today,
-                  window_days: SNAPSHOT_WINDOW_DAYS,
-                },
-              });
-            }}
+            onPlanProposal={openProposalInWorkspace}
             onOpenPlanTab={() => {
               if (activePlanSummary) setPickedPlanId(activePlanSummary.id);
               setActiveTab('plan');
             }}
           />
-
-          <CreatePlanCard
-            open={createOpen}
-            onOpenChange={setCreateOpen}
-            onCreated={(planId) => {
-              setPickedPlanId(planId);
-              setActiveTab('goals');
-            }}
-          />
         </TabsContent>
 
-        <TabsContent value="goals" className="focus-visible:outline-none">
-          {planDetail ? (
-            <GoalsCommitmentsEditor key={planDetail.id} plan={planDetail} />
-          ) : (
-            <Card>
-              <CardContent className="py-10">
-                <p className="text-center text-sm italic text-muted-foreground">
-                  {t(
-                    'training.goals.selectPlan',
-                    'Select or create a plan first.'
-                  )}
-                </p>
-              </CardContent>
-            </Card>
-          )}
+        <TabsContent value="settings" className="focus-visible:outline-none">
+          <TrainingSettingsTab
+            plans={plans}
+            plansLoading={plansLoading}
+            currentPlans={currentPlans}
+            pastPlans={pastPlans}
+            selectedPlanId={selectedPlanId}
+            onSelectPlan={setPickedPlanId}
+            onCreateOpen={() => setCreateOpen(true)}
+            onExport={handleExport}
+            onImportFile={handleImportFile}
+            importPending={importMutation.isPending}
+            exportPending={exportMutation.isPending}
+            updatePending={updateMutation.isPending}
+            adherencePending={adherenceMutation.isPending}
+            onActivate={(planId) =>
+              updateMutation.mutate({
+                planId,
+                payload: { status: 'active' },
+              })
+            }
+            onDeactivate={(planId) =>
+              updateMutation.mutate({
+                planId,
+                payload: { status: 'draft' },
+              })
+            }
+            onMatchAdherence={(plan) =>
+              adherenceMutation.mutate({
+                plan_id: plan.id,
+                start_date: plan.start_date,
+                end_date: plan.target_date,
+              })
+            }
+            onDeleteRequest={setPlanPendingDelete}
+            planDetail={planDetail}
+          />
         </TabsContent>
 
         <TabsContent value="plan" className="focus-visible:outline-none">
@@ -446,6 +270,15 @@ export default function TrainingPage() {
           <FitnessTestsPanel planId={selectedPlanId} />
         </TabsContent>
       </Tabs>
+
+      <CreatePlanCard
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onCreated={(planId) => {
+          setPickedPlanId(planId);
+          setActiveTab('settings');
+        }}
+      />
 
       <ConfirmationDialog
         open={!!planPendingDelete}

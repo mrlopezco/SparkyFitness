@@ -11,6 +11,7 @@ import {
   type JsonSchemaNode,
 } from '../ai/providerDispatch.js';
 import trainingPlanRepository from '../models/trainingPlanRepository.js';
+import trainingCoachingSignalRepository from '../models/trainingCoachingSignalRepository.js';
 import {
   dispatchErrorToThrow,
   loadProviderConfig,
@@ -187,6 +188,21 @@ export async function generateAiReview(
       adherence_score: session.completion?.adherence_score ?? null,
       exercise_entry_id: session.completion?.exercise_entry_id ?? null,
     });
+
+  try {
+    await trainingCoachingSignalRepository.appendCoachingSignal(
+      actingUserId,
+      planId,
+      sessionId,
+      aiReview
+    );
+  } catch (error) {
+    log(
+      'warn',
+      `[trainingSessionExecution] Failed to store coaching signal for session ${sessionId}:`,
+      error
+    );
+  }
 
   return { completion, ai_review: aiReview };
 }

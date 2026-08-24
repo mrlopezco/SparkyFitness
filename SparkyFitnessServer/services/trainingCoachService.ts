@@ -24,7 +24,10 @@ import {
 import trainingCoachRepository from '../models/trainingCoachRepository.js';
 import trainingPlanRepository from '../models/trainingPlanRepository.js';
 import trainingAthleteSnapshotService from './trainingAthleteSnapshotService.js';
+import trainingCoachingSignalRepository from '../models/trainingCoachingSignalRepository.js';
 import trainingFitnessTestService from './trainingFitnessTestService.js';
+import { computeFeasibilityFlags } from './trainingGoalFeasibilityService.js';
+import { computePlanHealth } from './trainingPlanHealthService.js';
 import {
   adjustTrainingPlan,
   proposeTrainingPlan,
@@ -274,9 +277,26 @@ async function buildCoachContext(
     trainingFitnessTestService.listTests(userId, { planId, limit: 5 }),
   ]);
 
-  const snapshot =
-    (await trainingAthleteSnapshotService.getLatestSnapshot(userId, planId)) ??
-    (await trainingAthleteSnapshotService.rebuildSnapshot(userId, planId));
+  const snapshot = await trainingAthleteSnapshotService.ensureFreshSnapshot(
+    userId,
+    planId
+  );
+
+  const plan_health = await computePlanHealth(userId, planId, today);
+
+  const feasibility_flags = computeFeasibilityFlags({
+    goals,
+    snapshot: snapshot.payload,
+    startDate: plan.start_date,
+    targetDate: plan.target_date,
+  });
+
+  const coaching_signals =
+    await trainingCoachingSignalRepository.listRecentCoachingSignals(
+      userId,
+      planId,
+      5
+    );
 
   const context = {
     today,
@@ -320,6 +340,9 @@ async function buildCoachContext(
       adherence_score: session.completion?.adherence_score ?? null,
     })),
     athlete_snapshot: snapshot.payload,
+    feasibility_flags,
+    plan_health,
+    coaching_signals,
     memories: memories.map((memory) => ({
       memory_key: memory.memory_key,
       memory_value: memory.memory_value,

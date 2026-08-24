@@ -26,6 +26,12 @@ import trainingPlanRepository from '../models/trainingPlanRepository.js';
 import trainingAthleteSnapshotService from './trainingAthleteSnapshotService.js';
 import trainingFitnessTestService from './trainingFitnessTestService.js';
 import {
+  outlineWeeksForChunk,
+  requestTrainingPlanOutline,
+} from './trainingPlanOutlineService.js';
+import { computeFeasibilityFlags } from './trainingGoalFeasibilityService.js';
+import { computePlanHealth } from './trainingPlanHealthService.js';
+import {
   ConfirmFailedError,
   dispatchErrorToThrow,
   loadProviderConfig,
@@ -348,9 +354,10 @@ async function buildPlanContext(
     trainingPlanRepository.listCommitments(userId, planId),
   ]);
 
-  const snapshot =
-    (await trainingAthleteSnapshotService.getLatestSnapshot(userId, planId)) ??
-    (await trainingAthleteSnapshotService.rebuildSnapshot(userId, planId));
+  const snapshot = await trainingAthleteSnapshotService.ensureFreshSnapshot(
+    userId,
+    planId
+  );
 
   const dayCount = daysBetween(plan.start_date, plan.target_date) + 1;
   const coverageFromExtras = asCoverageRequirement(extras['coverage_requirement']);
@@ -364,6 +371,24 @@ async function buildPlanContext(
   const restExtras = { ...extras };
   delete restExtras['coverage_requirement'];
 
+  const feasibility_flags = computeFeasibilityFlags({
+    goals,
+    snapshot: snapshot.payload,
+    startDate: plan.start_date,
+    targetDate: plan.target_date,
+    outline:
+      typeof restExtras['plan_outline'] === 'object' &&
+      restExtras['plan_outline'] !== null &&
+      !Array.isArray(restExtras['plan_outline']) &&
+      Array.isArray(
+        (restExtras['plan_outline'] as { weeks?: unknown }).weeks
+      )
+        ? (restExtras['plan_outline'] as import('@workspace/shared').TrainingPlanOutlineResponse)
+        : null,
+  });
+
+  const plan_health = await computePlanHealth(userId, planId, snapshot.as_of_date);
+
   const context = {
     plan: {
       name: plan.name,
@@ -373,6 +398,7 @@ async function buildPlanContext(
       target_date: plan.target_date,
       day_count: dayCount,
       notes: plan.notes,
+      ...(plan.intake_payload ? { intake_payload: plan.intake_payload } : {}),
     },
     coverage_requirement: coverage,
     goals: goals.map((goal) => ({
@@ -397,6 +423,8 @@ async function buildPlanContext(
       notes: commitment.notes,
     })),
     athlete_snapshot: snapshot.payload,
+    feasibility_flags,
+    plan_health,
     ...(userNotes ? { user_notes: userNotes } : {}),
     ...restExtras,
   };
@@ -407,6 +435,19 @@ async function buildPlanContext(
     startDate: coverage.inclusive_from,
     endDate: coverage.inclusive_to,
   };
+}
+
+function proposeSystemPrompt(
+  sportFocus: string,
+  basePrompt: string
+): string {
+  if (sportFocus === 'cycling' || sportFocus === 'mixed') {
+    return `${basePrompt}\n\nThe athlete sport_focus is "${sportFocus}". Balance running with cross_train and sport-appropriate work; do not schedule running on every non-rest day.`;
+  }
+  if (sportFocus === 'other') {
+    return `${basePrompt}\n\nThe athlete sport_focus is "other". Honor goals and commitments over default running templates.`;
+  }
+  return basePrompt;
 }
 
 async function requestSessionBlock(
@@ -487,6 +528,18 @@ async function requestSessionBlock(
   };
 }
 
+function cumulativeRunningKm(
+  sessions: readonly TrainingPlanProposedSession[]
+): number {
+  let total = 0;
+  for (const session of sessions) {
+    if (session.session_type === 'rest') continue;
+    const km = session.prescription.distance_km;
+    if (km != null && km > 0) total += km;
+  }
+  return Math.round(total * 10) / 10;
+}
+
 export async function proposeTrainingPlan(
   authenticatedUserId: string,
   actingUserId: string,
@@ -504,6 +557,38 @@ export async function proposeTrainingPlan(
   // Long blocks exceed reliable single-shot generation; propose in ~28-day
   // chunks and merge so confirm can persist the full start→target window.
   const chunks = buildProposeChunks(plan.start_date, plan.target_date, 28);
+
+  const outlineContext = await buildPlanContext(
+    actingUserId,
+    request.plan_id,
+    request.user_notes,
+    {
+      coverage_requirement: {
+        must_cover_every_day: true,
+        inclusive_from: plan.start_date,
+        inclusive_to: plan.target_date,
+        expected_session_count:
+          daysBetween(plan.start_date, plan.target_date) + 1,
+      },
+    }
+  );
+
+  let planOutline;
+  try {
+    planOutline = await requestTrainingPlanOutline(
+      authenticatedUserId,
+      outlineContext.context,
+      request.service_config_id,
+      actorIsAdmin
+    );
+  } catch (error) {
+    log(
+      'warn',
+      `[trainingPlanAi] Outline generation failed for plan ${request.plan_id}; continuing without macro skeleton:`,
+      error
+    );
+  }
+
   const mergedSessions: TrainingPlanProposedSession[] = [];
   const mergedFitnessTests: NonNullable<
     TrainingPlanProposeResponse['fitness_tests']
@@ -515,6 +600,10 @@ export async function proposeTrainingPlan(
   for (let index = 0; index < chunks.length; index += 1) {
     const chunk = chunks[index]!;
     const expected = daysBetween(chunk.start, chunk.end) + 1;
+    const chunkOutlineWeeks = planOutline
+      ? outlineWeeksForChunk(planOutline, chunk.start, chunk.end)
+      : [];
+    const priorKm = cumulativeRunningKm(mergedSessions);
     const contextPayload = await buildPlanContext(
       actingUserId,
       request.plan_id,
@@ -526,6 +615,20 @@ export async function proposeTrainingPlan(
           inclusive_to: chunk.end,
           expected_session_count: expected,
         },
+        ...(planOutline
+          ? {
+              plan_outline: {
+                summary: planOutline.summary,
+                weeks: chunkOutlineWeeks,
+                fitness_test_dates: planOutline.fitness_test_dates,
+                taper_start_date: planOutline.taper_start_date ?? null,
+                warnings: planOutline.warnings,
+              },
+            }
+          : {}),
+        ...(priorKm > 0
+          ? { prior_chunk_cumulative_km: priorKm }
+          : {}),
         propose_chunk: {
           index: index + 1,
           total: chunks.length,
@@ -538,7 +641,7 @@ export async function proposeTrainingPlan(
 
     const part = await requestSessionBlock(
       `propose[${index + 1}/${chunks.length}]`,
-      PROPOSE_PROMPT,
+      proposeSystemPrompt(plan.sport_focus, PROPOSE_PROMPT),
       contextPayload,
       authenticatedUserId,
       request.plan_id,
@@ -572,14 +675,16 @@ export async function proposeTrainingPlan(
   }
 
   const fullWarnings = [
+    ...(planOutline?.warnings ?? []),
     ...warnings,
     ...coverageWarnings(mergedSessions, plan.start_date, plan.target_date),
   ];
 
+  const outlineSummary = planOutline?.summary?.trim();
   return {
     plan_id: request.plan_id,
     summary:
-      summaryParts.join(' ') ||
+      [outlineSummary, ...summaryParts.filter(Boolean)].join(' ').trim() ||
       `Proposed ${mergedSessions.length} sessions from ${plan.start_date} to ${plan.target_date}.`,
     weekly_volume_notes: volumeParts.length ? volumeParts.join(' ') : null,
     sessions: mergedSessions,
@@ -587,6 +692,7 @@ export async function proposeTrainingPlan(
       ? { fitness_tests: mergedFitnessTests }
       : {}),
     ...(fullWarnings.length ? { warnings: fullWarnings } : {}),
+    ...(planOutline ? { plan_outline: planOutline } : {}),
   };
 }
 
@@ -654,7 +760,7 @@ export async function adjustTrainingPlan(
 
   return requestSessionBlock(
     'adjust',
-    ADJUST_PROMPT,
+    proposeSystemPrompt(plan.sport_focus, ADJUST_PROMPT),
     contextPayload,
     authenticatedUserId,
     request.plan_id,

@@ -27,6 +27,8 @@ import {
 import { log } from '../config/logging.js';
 import trainingPlanRepository from '../models/trainingPlanRepository.js';
 import trainingAthleteSnapshotService from './trainingAthleteSnapshotService.js';
+import { computeFeasibilityFlags } from './trainingGoalFeasibilityService.js';
+import { computePlanHealth } from './trainingPlanHealthService.js';
 import { confirmTrainingPlan, NotFoundError } from './trainingPlanAiService.js';
 
 /**
@@ -282,6 +284,32 @@ export async function getLatestSnapshot(
 ): Promise<TrainingAthleteSnapshot | null> {
   await requirePlan(userId, planId);
   return trainingAthleteSnapshotService.getLatestSnapshot(userId, planId);
+}
+
+export async function getFeasibilityFlags(
+  userId: string,
+  planId: string
+): Promise<{ plan_id: string; flags: string[] }> {
+  const plan = await requirePlan(userId, planId);
+  const [goals, snapshot] = await Promise.all([
+    trainingPlanRepository.listGoals(userId, planId),
+    trainingAthleteSnapshotService.getLatestSnapshot(userId, planId),
+  ]);
+  const flags = computeFeasibilityFlags({
+    goals,
+    snapshot: snapshot?.payload ?? null,
+    startDate: plan.start_date,
+    targetDate: plan.target_date,
+  });
+  return { plan_id: planId, flags };
+}
+
+export async function getPlanHealth(
+  userId: string,
+  planId: string
+): Promise<import('@workspace/shared').TrainingPlanHealth> {
+  await requirePlan(userId, planId);
+  return computePlanHealth(userId, planId);
 }
 
 /**

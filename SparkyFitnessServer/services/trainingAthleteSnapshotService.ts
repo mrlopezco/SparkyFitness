@@ -16,6 +16,7 @@ import trainingPlanRepository, {
   type WeightSample,
 } from '../models/trainingPlanRepository.js';
 import trainingFitnessTestRepository from '../models/trainingFitnessTestRepository.js';
+import { buildNutritionSnapshotBlock } from './trainingNutritionSnapshotService.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import {
   derivePacesFromRacePredictions,
@@ -91,6 +92,7 @@ export interface SnapshotInputs {
   sleep?: SleepAggregate;
   racePredictions?: RacePredictionAggregate;
   fitnessTests?: readonly FitnessTestSummary[];
+  nutrition?: TrainingAthleteSnapshotPayload['nutrition'];
 }
 
 function hasAnyNumber(
@@ -111,6 +113,7 @@ export function buildSnapshotPayload(
     sleep,
     racePredictions,
     fitnessTests,
+    nutrition,
   } = inputs;
 
   const bySport = new Map<
@@ -213,6 +216,12 @@ export function buildSnapshotPayload(
     );
   }
 
+  if (!nutrition || nutrition.days_logged === 0) {
+    notes.push(
+      'No food diary days in the window; nutrition context is omitted.'
+    );
+  }
+
   const runningScience = racePredictions
     ? derivePacesFromRacePredictions(racePredictions)
     : null;
@@ -291,6 +300,7 @@ export function buildSnapshotPayload(
     ...(fitnessTests && fitnessTests.length
       ? { recent_fitness_tests: [...fitnessTests] }
       : {}),
+    ...(nutrition ? { nutrition } : {}),
     ...(notes.length ? { notes } : {}),
   };
 }
@@ -371,6 +381,15 @@ export async function rebuildSnapshot(
       status: test.status,
       result_summary: summarizeTestResult(test.result),
     })),
+    nutrition:
+      (await buildNutritionSnapshotBlock({
+        userId,
+        startDate,
+        endDate: asOfDate,
+        latestWeightKg: weights.length
+          ? weights[weights.length - 1]!.kg
+          : null,
+      })) ?? undefined,
   });
 
   const snapshot = await trainingPlanRepository.insertSnapshot(
@@ -395,10 +414,33 @@ export async function getLatestSnapshot(
   return trainingPlanRepository.getLatestSnapshot(userId, planId);
 }
 
+const SNAPSHOT_STALE_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Rebuilds when missing or older than 24h so AI context stays current.
+ */
+export async function ensureFreshSnapshot(
+  userId: string,
+  planId: string | null,
+  windowDays: number = DEFAULT_SNAPSHOT_WINDOW_DAYS
+): Promise<TrainingAthleteSnapshot> {
+  const latest = planId
+    ? await trainingPlanRepository.getLatestSnapshot(userId, planId)
+    : null;
+  if (latest?.created_at) {
+    const ageMs = Date.now() - new Date(latest.created_at).getTime();
+    if (Number.isFinite(ageMs) && ageMs < SNAPSHOT_STALE_MS) {
+      return latest;
+    }
+  }
+  return rebuildSnapshot(userId, planId, windowDays);
+}
+
 export default {
   buildSnapshotPayload,
   estimateTokens,
   rebuildSnapshot,
+  ensureFreshSnapshot,
   getLatestSnapshot,
   summarizeTestResult,
   DEFAULT_SNAPSHOT_WINDOW_DAYS,

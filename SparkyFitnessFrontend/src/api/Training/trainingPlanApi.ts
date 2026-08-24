@@ -39,6 +39,10 @@ import {
   trainingPlanExportDocumentSchema,
   trainingPlanImportRequestSchema,
   trainingPlanImportResponseSchema,
+  trainingFeasibilityResponseSchema,
+  trainingPlanHealthSchema,
+  type TrainingFeasibilityResponse,
+  type TrainingPlanHealth,
   type TrainingAdherenceMatchRequest,
   type TrainingAdherenceMatchResponse,
   type TrainingAthleteSnapshot,
@@ -462,14 +466,44 @@ export async function createFitnessTest(
 export async function reportFitnessTest(
   testId: string,
   payload: TrainingFitnessTestReportRequest
-): Promise<TrainingFitnessTest> {
+): Promise<{
+  test: TrainingFitnessTest;
+  suggest_adjust_from?: string;
+  suggest_adjust_to?: string;
+}> {
   const validatedRequest =
     trainingFitnessTestReportRequestSchema.parse(payload);
   const response = await apiCall(
     `/training-plans/fitness-tests/${testId}/report`,
     { method: 'POST', body: validatedRequest }
   );
-  return trainingFitnessTestSchema.parse(unwrapEnvelope(response, 'test'));
+  const outcomeSchema = z.object({
+    test: trainingFitnessTestSchema,
+    suggest_adjust_from: z.string().optional(),
+    suggest_adjust_to: z.string().optional(),
+  });
+  return outcomeSchema.parse(response);
+}
+
+export async function fetchTrainingPlanFeasibility(
+  planId: string
+): Promise<TrainingFeasibilityResponse> {
+  const response = await apiCall(`/training-plans/${planId}/feasibility`, {
+    method: 'GET',
+  });
+  return trainingFeasibilityResponseSchema.parse(response);
+}
+
+export async function fetchTrainingPlanHealth(
+  planId: string
+): Promise<TrainingPlanHealth> {
+  const response = await apiCall(`/training-plans/${planId}/plan-health`, {
+    method: 'GET',
+  });
+  return trainingPlanHealthSchema.parse(
+    z.object({ plan_health: trainingPlanHealthSchema }).parse(response)
+      .plan_health
+  );
 }
 
 export async function deleteFitnessTest(testId: string): Promise<void> {

@@ -8,6 +8,7 @@ Rules:
 - Only schedule sessions inside `adjust_window`. Never touch a date before from_date or after to_date.
 - Sessions already marked completed, partial, moved, or skipped are history. Do not re-issue them; treat them as evidence of what the athlete actually did. Still include a placeholder day only if you are replacing a planned day; never rewrite completed history as a new planned session on the same date.
 - Read the drift before revising. Repeated unmatched or skipped sessions mean the plan was too ambitious, badly timed, or blocked by a commitment — reduce load or move the session rather than repeating it verbatim.
+- Use `plan_health` when present: prioritize its summary_lines and last_7_days metrics before changing volume or quality frequency.
 - Read `skip_reason` literally: an injury or illness reason means back off; a scheduling reason means move the session, not shrink it.
 - Respect commitments: never schedule a hard running session on a day marked blocks_training=true. Easy recovery runs are allowed only when the commitment intensity is low.
 - Keep the athlete pointed at the plan's goals and target_date; a revision re-routes toward the goal, it does not abandon it.

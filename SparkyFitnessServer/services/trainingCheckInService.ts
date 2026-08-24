@@ -13,6 +13,7 @@ import trainingPlanRepository, {
 import trainingAthleteSnapshotService from './trainingAthleteSnapshotService.js';
 import trainingCoachService from './trainingCoachService.js';
 import trainingFitnessTestService from './trainingFitnessTestService.js';
+import { computePlanHealth } from './trainingPlanHealthService.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 
 /**
@@ -34,11 +35,19 @@ const FITNESS_TEST_STALE_DAYS = 28;
 /** How far out a suggested test lands: far enough to taper into, close enough to matter. */
 const FITNESS_TEST_LEAD_DAYS = 5;
 
+export interface CheckInPlanHealthSignals {
+  acwr_elevated: boolean;
+  missed_quality: boolean;
+  low_execution: boolean;
+  injury_skips: number;
+}
+
 export interface CheckInDecision {
   shouldOpen: boolean;
   reasons: string[];
   unmatchedCount: number;
   fitnessTestOverdue: boolean;
+  overloadPattern?: boolean;
 }
 
 /**
@@ -50,8 +59,10 @@ export function decideCheckIn(inputs: {
   daysSinceLastCheckIn: number | null;
   unmatchedCount: number;
   fitnessTestOverdue: boolean;
+  planHealth?: CheckInPlanHealthSignals;
 }): CheckInDecision {
-  const { hasOpenSession, daysSinceLastCheckIn, unmatchedCount } = inputs;
+  const { hasOpenSession, daysSinceLastCheckIn, unmatchedCount, planHealth } =
+    inputs;
   const reasons: string[] = [];
 
   if (daysSinceLastCheckIn === null) {
@@ -70,6 +81,29 @@ export function decideCheckIn(inputs: {
     );
   }
 
+  let overloadPattern = false;
+  if (planHealth) {
+    if (planHealth.acwr_elevated && unmatchedCount >= 1) {
+      reasons.push(
+        'elevated ACWR with at least one missed session in the last week'
+      );
+      overloadPattern = true;
+    }
+    if (planHealth.missed_quality) {
+      reasons.push('a quality session was missed in the last 7 days');
+    }
+    if (planHealth.injury_skips >= 3) {
+      reasons.push(
+        `${planHealth.injury_skips} skips cited injury or illness recently`
+      );
+      overloadPattern = true;
+    }
+    if (planHealth.low_execution) {
+      reasons.push('execution scores on completed sessions are consistently low');
+      overloadPattern = true;
+    }
+  }
+
   return {
     // An open session means the athlete is already mid-conversation; a second
     // thread would fragment the history the coach reads.
@@ -77,6 +111,7 @@ export function decideCheckIn(inputs: {
     reasons,
     unmatchedCount,
     fitnessTestOverdue: inputs.fitnessTestOverdue,
+    overloadPattern,
   };
 }
 
@@ -94,6 +129,15 @@ export function buildOpeningBrief(
     `Reason for reaching out: ${decision.reasons.join('; ')}.`,
     'Open the conversation by naming what you noticed, ask one focused question about it, and only suggest a change once the athlete has answered.',
   ];
+  if (decision.overloadPattern) {
+    lines.push(
+      'Lead with recovery and load management; the athlete may be overreaching even if some sessions were completed.'
+    );
+  } else if (decision.unmatchedCount > UNMATCHED_SESSION_THRESHOLD) {
+    lines.push(
+      'Focus on scheduling friction or plan ambition before pushing more volume.'
+    );
+  }
   if (decision.fitnessTestOverdue) {
     lines.push(
       'A fitness test is being offered alongside this check-in; confirm the date works for the athlete rather than assuming it.'
@@ -158,11 +202,33 @@ async function checkInOnPlan(plan: ActivePlanRef): Promise<boolean> {
     ? daysBetween(lastCheckInAt.slice(0, 10), today)
     : null;
 
+  let planHealthSignals;
+  try {
+    const health = await computePlanHealth(plan.user_id, plan.plan_id, today);
+    planHealthSignals = {
+      acwr_elevated: health.acwr != null && health.acwr > 1.3,
+      missed_quality:
+        health.last_7_days.quality_planned >
+        health.last_7_days.quality_completed,
+      low_execution:
+        health.last_7_days.avg_execution_score != null &&
+        health.last_7_days.avg_execution_score < 5,
+      injury_skips: health.last_7_days.injury_skips,
+    };
+  } catch (error) {
+    log(
+      'warn',
+      `[trainingCheckIn] Plan health unavailable for user ${plan.user_id}:`,
+      error
+    );
+  }
+
   const decision = decideCheckIn({
     hasOpenSession: false,
     daysSinceLastCheckIn,
     unmatchedCount,
     fitnessTestOverdue,
+    planHealth: planHealthSignals,
   });
   if (!decision.shouldOpen) return false;
 
