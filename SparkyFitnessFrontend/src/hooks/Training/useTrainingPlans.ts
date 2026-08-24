@@ -248,6 +248,9 @@ export function useConfirmTrainingPlanMutation() {
       confirmTrainingPlan(payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: trainingPlanKeys.all });
+      void queryClient.invalidateQueries({
+        queryKey: trainingPlanKeys.planner(),
+      });
     },
     meta: {
       errorTitle: 'Could not save plan',

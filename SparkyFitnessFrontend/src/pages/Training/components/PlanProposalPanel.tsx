@@ -31,6 +31,7 @@ import { SESSION_TYPES, SESSION_TYPE_LABELS } from '../trainingConstants';
 interface PlanProposalPanelProps {
   proposal: TrainingPlanProposeResponse;
   replaceExisting?: boolean;
+  plannerSessionId?: string;
   onReject: () => void;
   onConfirmed: () => void;
 }
@@ -51,6 +52,7 @@ function isInvalidPresetId(value: string | null | undefined): boolean {
 export default function PlanProposalPanel({
   proposal,
   replaceExisting = true,
+  plannerSessionId,
   onReject,
   onConfirmed,
 }: PlanProposalPanelProps) {
@@ -108,6 +110,12 @@ export default function PlanProposalPanel({
       sessions,
       fitness_tests: proposal.fitness_tests,
       activate: true,
+      ...(plannerSessionId
+        ? {
+            planner_session_id: plannerSessionId,
+            proposal_summary: proposal.summary,
+          }
+        : {}),
     });
     onConfirmed();
   };

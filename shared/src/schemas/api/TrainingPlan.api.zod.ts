@@ -364,7 +364,7 @@ export const trainingPlanProposeRequestSchema = z.object({
   plan_id: z.string().uuid(),
   service_config_id: z.string().uuid().optional(),
   /** Optional free-text guidance for the planner. */
-  user_notes: z.string().max(4000).optional(),
+  user_notes: z.string().max(8000).optional(),
   /** Replace existing planned sessions on confirm when true. */
   replace_existing: z.boolean().default(true),
 });
@@ -449,6 +449,10 @@ export const trainingPlanConfirmRequestSchema = z.object({
   sessions: z.array(trainingPlanProposedSessionSchema).min(1),
   fitness_tests: z.array(trainingPlanProposedFitnessTestSchema).optional(),
   activate: z.boolean().default(true),
+  /** When set, records an AI change summary on the planner session after confirm. */
+  planner_session_id: z.string().uuid().optional(),
+  /** Proposal summary shown in review; used when writing the change log entry. */
+  proposal_summary: z.string().max(4000).optional(),
 });
 
 export const trainingPlanConfirmResponseSchema = z.object({
@@ -686,11 +690,85 @@ export const trainingCoachMemoryUpsertSchema = z.object({
 export const trainingPlanAdjustRequestSchema = z.object({
   plan_id: z.string().uuid(),
   service_config_id: z.string().uuid().optional(),
-  user_notes: z.string().max(4000).optional(),
+  user_notes: z.string().max(8000).optional(),
   /** Limit adjustment to this inclusive date window when set. */
   from_date: dayStringSchema.optional(),
   to_date: dayStringSchema.optional(),
   replace_existing: z.boolean().default(true),
+});
+
+export const trainingPlanPlannerModeSchema = z.enum(['generate', 'adjust']);
+
+export const trainingPlanPlannerMessageSchema = z.object({
+  id: z.string().uuid().optional(),
+  session_id: z.string().uuid().optional(),
+  role: z.enum(['user', 'assistant', 'system']),
+  content: z.string().min(1).max(8000),
+  created_at: z.string().optional(),
+});
+
+export const trainingPlanPlannerSessionStatusSchema = z.enum([
+  'active',
+  'confirmed',
+  'cancelled',
+]);
+
+export const trainingPlanPlannerSessionSchema = z.object({
+  id: z.string().uuid(),
+  plan_id: z.string().uuid(),
+  user_id: z.string().uuid(),
+  mode: trainingPlanPlannerModeSchema,
+  status: trainingPlanPlannerSessionStatusSchema,
+  summary: z.string().nullable(),
+  adjust_from: dayStringSchema.nullable(),
+  adjust_to: dayStringSchema.nullable(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  confirmed_at: z.string().nullable(),
+  cancelled_at: z.string().nullable(),
+});
+
+export const trainingPlanPlannerCreateSessionRequestSchema = z.object({
+  mode: trainingPlanPlannerModeSchema,
+});
+
+export const trainingPlanPlannerSendMessageRequestSchema = z.object({
+  content: z.string().min(1).max(8000),
+  service_config_id: z.string().uuid().optional(),
+});
+
+export const trainingPlanPlannerSessionDetailSchema = z.object({
+  session: trainingPlanPlannerSessionSchema,
+  messages: z.array(trainingPlanPlannerMessageSchema),
+});
+
+export const trainingPlanPlannerDraftSessionRequestSchema = z.object({
+  service_config_id: z.string().uuid().optional(),
+  replace_existing: z.boolean().default(true),
+});
+
+export const trainingPlanPlannerChatRequestSchema = z.object({
+  plan_id: z.string().uuid(),
+  mode: trainingPlanPlannerModeSchema,
+  messages: z.array(trainingPlanPlannerMessageSchema).min(1).max(40),
+  service_config_id: z.string().uuid().optional(),
+});
+
+export const trainingPlanPlannerChatResponseSchema = z.object({
+  reply: z.string(),
+  ready_for_draft: z.boolean(),
+  adjust_from: dayStringSchema.optional(),
+  adjust_to: dayStringSchema.optional(),
+});
+
+export const trainingPlanPlannerDraftRequestSchema = z.object({
+  plan_id: z.string().uuid(),
+  mode: trainingPlanPlannerModeSchema,
+  messages: z.array(trainingPlanPlannerMessageSchema).min(1).max(40),
+  service_config_id: z.string().uuid().optional(),
+  replace_existing: z.boolean().default(true),
+  from_date: dayStringSchema.optional(),
+  to_date: dayStringSchema.optional(),
 });
 
 // --- Fitness snapshots (periodic fitness tests) ---
@@ -845,6 +923,36 @@ export type TrainingCoachMemoryUpsert = z.infer<
 >;
 export type TrainingPlanAdjustRequest = z.infer<
   typeof trainingPlanAdjustRequestSchema
+>;
+export type TrainingPlanPlannerMessage = z.infer<
+  typeof trainingPlanPlannerMessageSchema
+>;
+export type TrainingPlanPlannerMode = z.infer<
+  typeof trainingPlanPlannerModeSchema
+>;
+export type TrainingPlanPlannerChatRequest = z.infer<
+  typeof trainingPlanPlannerChatRequestSchema
+>;
+export type TrainingPlanPlannerChatResponse = z.infer<
+  typeof trainingPlanPlannerChatResponseSchema
+>;
+export type TrainingPlanPlannerDraftRequest = z.infer<
+  typeof trainingPlanPlannerDraftRequestSchema
+>;
+export type TrainingPlanPlannerSession = z.infer<
+  typeof trainingPlanPlannerSessionSchema
+>;
+export type TrainingPlanPlannerCreateSessionRequest = z.infer<
+  typeof trainingPlanPlannerCreateSessionRequestSchema
+>;
+export type TrainingPlanPlannerSendMessageRequest = z.infer<
+  typeof trainingPlanPlannerSendMessageRequestSchema
+>;
+export type TrainingPlanPlannerSessionDetail = z.infer<
+  typeof trainingPlanPlannerSessionDetailSchema
+>;
+export type TrainingPlanPlannerDraftSessionRequest = z.infer<
+  typeof trainingPlanPlannerDraftSessionRequestSchema
 >;
 export type TrainingFitnessTestType = z.infer<
   typeof trainingFitnessTestTypeSchema

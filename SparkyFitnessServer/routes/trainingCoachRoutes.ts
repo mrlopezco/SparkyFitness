@@ -8,6 +8,9 @@ import {
   trainingFitnessTestReportRequestSchema,
   trainingFitnessTestStatusSchema,
   trainingPlanAdjustRequestSchema,
+  trainingPlanPlannerCreateSessionRequestSchema,
+  trainingPlanPlannerDraftSessionRequestSchema,
+  trainingPlanPlannerSendMessageRequestSchema,
   trainingSessionAiReviewRequestSchema,
   trainingSessionReportExecutionRequestSchema,
   trainingSessionSkipRequestSchema,
@@ -17,6 +20,7 @@ import { authenticate } from '../middleware/authMiddleware.js';
 import checkPermissionMiddleware from '../middleware/checkPermissionMiddleware.js';
 import { resolveIsAdmin } from '../utils/adminCheck.js';
 import trainingCoachService from '../services/trainingCoachService.js';
+import trainingPlanPlannerService from '../services/trainingPlanPlannerService.js';
 import trainingFitnessTestService from '../services/trainingFitnessTestService.js';
 import trainingPlanService from '../services/trainingPlanService.js';
 import trainingSessionExecutionService from '../services/trainingSessionExecutionService.js';
@@ -473,6 +477,220 @@ router.post(
       log(
         'error',
         `Unexpected error reviewing session ${req.params.sessionId} for user ${req.userId}:`,
+        error
+      );
+      next(error);
+    }
+  }
+);
+
+const plannerSessionParamsSchema = z.object({
+  id: uuidSchema,
+  sessionId: uuidSchema,
+});
+
+const plannerHistoryQuerySchema = z.object({
+  status: z.enum(['active', 'confirmed', 'cancelled']).optional(),
+});
+
+router.get(
+  '/:id/planner/sessions',
+  authenticate,
+  checkPermissionMiddleware('diary'),
+  async (req, res, next) => {
+    const planId = uuidSchema.safeParse(req.params.id);
+    const query = plannerHistoryQuerySchema.safeParse(req.query);
+    if (!planId.success) {
+      return invalidRequest(res, planId.error.issues);
+    }
+    if (!query.success) {
+      return invalidRequest(res, query.error.issues);
+    }
+    try {
+      const sessions = await trainingPlanPlannerService.listPlannerSessions(
+        activeUserId(req),
+        planId.data,
+        query.data.status
+      );
+      return res.status(200).json({ sessions });
+    } catch (error) {
+      const handled = respondWithDomainError(res, error);
+      if (handled) return handled;
+      log(
+        'error',
+        `Unexpected error listing planner sessions for user ${req.userId}:`,
+        error
+      );
+      next(error);
+    }
+  }
+);
+
+router.post(
+  '/:id/planner/sessions',
+  authenticate,
+  checkPermissionMiddleware('diary'),
+  async (req, res, next) => {
+    const planId = uuidSchema.safeParse(req.params.id);
+    const body = trainingPlanPlannerCreateSessionRequestSchema.safeParse(
+      req.body ?? {}
+    );
+    if (!planId.success) {
+      return invalidRequest(res, planId.error.issues);
+    }
+    if (!body.success) {
+      return invalidRequest(res, body.error.issues);
+    }
+    try {
+      const detail = await trainingPlanPlannerService.createPlannerSession(
+        activeUserId(req),
+        planId.data,
+        body.data
+      );
+      return res.status(201).json(detail);
+    } catch (error) {
+      const handled = respondWithDomainError(res, error);
+      if (handled) return handled;
+      log(
+        'error',
+        `Unexpected error creating planner session for user ${req.userId}:`,
+        error
+      );
+      next(error);
+    }
+  }
+);
+
+router.get(
+  '/:id/planner/sessions/:sessionId',
+  authenticate,
+  checkPermissionMiddleware('diary'),
+  async (req, res, next) => {
+    const ids = plannerSessionParamsSchema.safeParse(req.params);
+    if (!ids.success) {
+      return invalidRequest(res, ids.error.issues);
+    }
+    try {
+      const detail = await trainingPlanPlannerService.getPlannerSessionDetail(
+        activeUserId(req),
+        ids.data.id,
+        ids.data.sessionId
+      );
+      return res.status(200).json(detail);
+    } catch (error) {
+      const handled = respondWithDomainError(res, error);
+      if (handled) return handled;
+      log(
+        'error',
+        `Unexpected error loading planner session ${req.params.sessionId}:`,
+        error
+      );
+      next(error);
+    }
+  }
+);
+
+router.post(
+  '/:id/planner/sessions/:sessionId/messages',
+  authenticate,
+  checkPermissionMiddleware('diary'),
+  async (req, res, next) => {
+    const ids = plannerSessionParamsSchema.safeParse(req.params);
+    const body = trainingPlanPlannerSendMessageRequestSchema.safeParse(
+      req.body ?? {}
+    );
+    if (!ids.success) {
+      return invalidRequest(res, ids.error.issues);
+    }
+    if (!body.success) {
+      return invalidRequest(res, body.error.issues);
+    }
+    try {
+      const isAdmin = await resolveIsAdmin(req.user, req.authenticatedUserId);
+      const result =
+        await trainingPlanPlannerService.sendPlannerSessionMessage(
+          req.authenticatedUserId || activeUserId(req),
+          activeUserId(req),
+          ids.data.id,
+          ids.data.sessionId,
+          body.data,
+          isAdmin
+        );
+      return res.status(200).json(result);
+    } catch (error) {
+      const handled = respondWithDomainError(res, error);
+      if (handled) return handled;
+      log(
+        'error',
+        `Unexpected error in planner message for user ${req.userId}:`,
+        error
+      );
+      next(error);
+    }
+  }
+);
+
+router.post(
+  '/:id/planner/sessions/:sessionId/draft',
+  authenticate,
+  checkPermissionMiddleware('diary'),
+  async (req, res, next) => {
+    const ids = plannerSessionParamsSchema.safeParse(req.params);
+    const body = trainingPlanPlannerDraftSessionRequestSchema.safeParse(
+      req.body ?? {}
+    );
+    if (!ids.success) {
+      return invalidRequest(res, ids.error.issues);
+    }
+    if (!body.success) {
+      return invalidRequest(res, body.error.issues);
+    }
+    try {
+      const isAdmin = await resolveIsAdmin(req.user, req.authenticatedUserId);
+      const proposal = await trainingPlanPlannerService.draftPlannerSession(
+        req.authenticatedUserId || activeUserId(req),
+        activeUserId(req),
+        ids.data.id,
+        ids.data.sessionId,
+        body.data,
+        isAdmin
+      );
+      return res.status(200).json(proposal);
+    } catch (error) {
+      const handled = respondWithDomainError(res, error);
+      if (handled) return handled;
+      log(
+        'error',
+        `Unexpected error drafting from planner session for user ${req.userId}:`,
+        error
+      );
+      next(error);
+    }
+  }
+);
+
+router.post(
+  '/:id/planner/sessions/:sessionId/cancel',
+  authenticate,
+  checkPermissionMiddleware('diary'),
+  async (req, res, next) => {
+    const ids = plannerSessionParamsSchema.safeParse(req.params);
+    if (!ids.success) {
+      return invalidRequest(res, ids.error.issues);
+    }
+    try {
+      await trainingPlanPlannerService.cancelPlannerSession(
+        activeUserId(req),
+        ids.data.id,
+        ids.data.sessionId
+      );
+      return res.status(204).send();
+    } catch (error) {
+      const handled = respondWithDomainError(res, error);
+      if (handled) return handled;
+      log(
+        'error',
+        `Unexpected error cancelling planner session for user ${req.userId}:`,
         error
       );
       next(error);

@@ -268,9 +268,14 @@ router.post(
       return invalidRequest(res, validation.error.issues);
     }
     try {
+      const isAdmin = await resolveIsAdmin(req.user, req.authenticatedUserId);
       const result = await trainingPlanService.confirmPlan(
         activeUserId(req),
-        validation.data
+        validation.data,
+        {
+          authenticatedUserId: req.authenticatedUserId || activeUserId(req),
+          actorIsAdmin: isAdmin,
+        }
       );
       return res.status(200).json(result);
     } catch (error) {

@@ -16,6 +16,9 @@ jest.mock('@/contexts/PreferencesContext', () => ({
 
 const mockPropose = jest.fn();
 const mockAdjust = jest.fn();
+const mockCreatePlannerSession = jest.fn();
+const mockSendPlannerMessage = jest.fn();
+const mockDraftPlannerSession = jest.fn();
 
 const mockIdleMutation = () => ({
   mutate: jest.fn(),
@@ -84,6 +87,8 @@ const mockCompletedTest = {
   completed_at: '2026-08-15T00:00:00.000Z',
 };
 
+const plannerSessionId = '66666666-6666-4666-8666-666666666666';
+
 jest.mock('@/hooks/Training/useTrainingPlans', () => ({
   useTrainingPlans: () => ({ data: [mockPlan], isLoading: false }),
   useTrainingPlanDetail: () => ({
@@ -127,6 +132,25 @@ jest.mock('@/hooks/Training/useTrainingPlans', () => ({
     isPending: false,
     reset: jest.fn(),
   }),
+  useTrainingPlanFeasibility: () => ({ data: undefined }),
+  useTrainingPlanHealth: () => ({ data: undefined }),
+}));
+
+jest.mock('@/hooks/Training/useTrainingPlanPlanner', () => ({
+  usePlannerChangeHistory: () => ({ data: [], isLoading: false }),
+  useCreatePlannerSessionMutation: () => ({
+    mutateAsync: mockCreatePlannerSession,
+    isPending: false,
+  }),
+  useSendPlannerMessageMutation: () => ({
+    mutateAsync: mockSendPlannerMessage,
+    isPending: false,
+  }),
+  useDraftPlannerSessionMutation: () => ({
+    mutateAsync: mockDraftPlannerSession,
+    isPending: false,
+  }),
+  useCancelPlannerSessionMutation: () => mockIdleMutation(),
 }));
 
 jest.mock('@/hooks/Training/useFitnessTests', () => ({
@@ -150,6 +174,28 @@ jest.mock('@/hooks/Training/useTrainingCoach', () => ({
 describe('TrainingPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockCreatePlannerSession.mockResolvedValue({
+      session: {
+        id: plannerSessionId,
+        plan_id: mockPlan.id,
+        user_id: mockPlan.user_id,
+        mode: 'generate',
+        status: 'active',
+        summary: null,
+        adjust_from: null,
+        adjust_to: null,
+        created_at: '2026-08-20T00:00:00.000Z',
+        updated_at: '2026-08-20T00:00:00.000Z',
+        confirmed_at: null,
+        cancelled_at: null,
+      },
+      messages: [
+        {
+          role: 'assistant',
+          content: 'Tell me about your training week.',
+        },
+      ],
+    });
   });
 
   it('renders the plan list, goals and create form', () => {
@@ -161,7 +207,11 @@ describe('TrainingPage', () => {
   });
 
   it('opens the review dialog with the proposed sessions', async () => {
-    mockPropose.mockResolvedValue({
+    mockSendPlannerMessage.mockResolvedValue({
+      reply: 'Got it — I will keep long runs on Sunday.',
+      ready_for_draft: true,
+    });
+    mockDraftPlannerSession.mockResolvedValue({
       plan_id: mockPlan.id,
       summary: 'Eight-week build with two quality sessions a week.',
       sessions: [
@@ -175,14 +225,35 @@ describe('TrainingPage', () => {
     });
 
     render(<TrainingPage />);
-    fireEvent.click(screen.getByRole('button', { name: /Generate plan/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Training plan' }));
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: /New conversation — generate plan/i,
+      })
+    );
 
     await waitFor(() => {
-      expect(mockPropose).toHaveBeenCalledWith({
-        plan_id: mockPlan.id,
-        user_notes: undefined,
-        replace_existing: true,
-      });
+      expect(mockCreatePlannerSession).toHaveBeenCalled();
+    });
+
+    fireEvent.change(screen.getByLabelText('Your message'), {
+      target: { value: 'Two quality days, long run Sunday.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+
+    await waitFor(() => {
+      expect(mockSendPlannerMessage).toHaveBeenCalled();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Draft proposal' }));
+
+    await waitFor(() => {
+      expect(mockDraftPlannerSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          planId: mockPlan.id,
+          sessionId: plannerSessionId,
+        })
+      );
       expect(
         screen.getByText('Eight-week build with two quality sessions a week.')
       ).toBeTruthy();
@@ -200,7 +271,30 @@ describe('TrainingPage', () => {
   });
 
   it('routes the adjustment proposal into the review dialog', async () => {
-    mockAdjust.mockResolvedValue({
+    mockCreatePlannerSession.mockResolvedValue({
+      session: {
+        id: plannerSessionId,
+        plan_id: mockPlan.id,
+        user_id: mockPlan.user_id,
+        mode: 'adjust',
+        status: 'active',
+        summary: null,
+        adjust_from: null,
+        adjust_to: null,
+        created_at: '2026-08-20T00:00:00.000Z',
+        updated_at: '2026-08-20T00:00:00.000Z',
+        confirmed_at: null,
+        cancelled_at: null,
+      },
+      messages: [{ role: 'assistant', content: 'What changed?' }],
+    });
+    mockSendPlannerMessage.mockResolvedValue({
+      reply: 'I will soften this week and shift the long run.',
+      ready_for_draft: true,
+      adjust_from: '2026-08-20',
+      adjust_to: '2026-08-26',
+    });
+    mockDraftPlannerSession.mockResolvedValue({
       plan_id: mockPlan.id,
       summary: 'Pulled back this week after the missed intervals.',
       sessions: [
@@ -214,16 +308,26 @@ describe('TrainingPage', () => {
     });
 
     render(<TrainingPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Training plan' }));
     fireEvent.click(
-      screen.getByRole('button', { name: /Suggest adjustment/i })
+      screen.getByRole('button', {
+        name: /New conversation — change plan/i,
+      })
     );
 
     await waitFor(() => {
-      expect(mockAdjust).toHaveBeenCalledWith({
-        plan_id: mockPlan.id,
-        user_notes: undefined,
-        replace_existing: true,
-      });
+      expect(mockCreatePlannerSession).toHaveBeenCalledWith(
+        expect.objectContaining({ payload: { mode: 'adjust' } })
+      );
+    });
+
+    fireEvent.change(screen.getByLabelText('Your message'), {
+      target: { value: 'Missed intervals, calf tight.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Draft proposal' }));
+
+    await waitFor(() => {
       expect(
         screen.getByText('Pulled back this week after the missed intervals.')
       ).toBeTruthy();

@@ -306,6 +306,7 @@ async function buildCoachContext(
       start_date: plan.start_date,
       target_date: plan.target_date,
       status: plan.status,
+      ...(plan.intake_payload ? { intake_payload: plan.intake_payload } : {}),
     },
     goals: goals.map((goal) => ({
       type: goal.type,

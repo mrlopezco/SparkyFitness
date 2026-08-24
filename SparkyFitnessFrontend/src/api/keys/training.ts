@@ -19,4 +19,9 @@ export const trainingPlanKeys = {
   fitnessTests: () => [...trainingPlanKeys.all, 'fitnessTests'] as const,
   fitnessTestList: (planId?: string) =>
     [...trainingPlanKeys.fitnessTests(), planId ?? 'all'] as const,
+  planner: () => [...trainingPlanKeys.all, 'planner'] as const,
+  plannerSessions: (planId: string) =>
+    [...trainingPlanKeys.planner(), planId, 'sessions'] as const,
+  plannerHistory: (planId: string) =>
+    [...trainingPlanKeys.plannerSessions(planId), 'confirmed'] as const,
 };

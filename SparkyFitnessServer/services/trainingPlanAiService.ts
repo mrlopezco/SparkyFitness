@@ -23,6 +23,7 @@ import {
   type JsonSchemaNode,
 } from '../ai/providerDispatch.js';
 import trainingPlanRepository from '../models/trainingPlanRepository.js';
+import trainingPlanPlannerRepository from '../models/trainingPlanPlannerRepository.js';
 import trainingAthleteSnapshotService from './trainingAthleteSnapshotService.js';
 import trainingFitnessTestService from './trainingFitnessTestService.js';
 import {
@@ -333,7 +334,7 @@ export function buildProposeChunks(
   return chunks;
 }
 
-async function buildPlanContext(
+export async function buildPlanContext(
   userId: string,
   planId: string,
   userNotes: string | undefined,
@@ -389,6 +390,13 @@ async function buildPlanContext(
 
   const plan_health = await computePlanHealth(userId, planId, snapshot.as_of_date);
 
+  const plan_change_history =
+    await trainingPlanPlannerRepository.listConfirmedChangeSummaries(
+      userId,
+      planId,
+      12
+    );
+
   const context = {
     plan: {
       name: plan.name,
@@ -425,6 +433,7 @@ async function buildPlanContext(
     athlete_snapshot: snapshot.payload,
     feasibility_flags,
     plan_health,
+    ...(plan_change_history.length ? { plan_change_history } : {}),
     ...(userNotes ? { user_notes: userNotes } : {}),
     ...restExtras,
   };

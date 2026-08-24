@@ -29,6 +29,7 @@ import trainingPlanRepository from '../models/trainingPlanRepository.js';
 import trainingAthleteSnapshotService from './trainingAthleteSnapshotService.js';
 import { computeFeasibilityFlags } from './trainingGoalFeasibilityService.js';
 import { computePlanHealth } from './trainingPlanHealthService.js';
+import trainingPlanPlannerService from './trainingPlanPlannerService.js';
 import { confirmTrainingPlan, NotFoundError } from './trainingPlanAiService.js';
 
 /**
@@ -318,9 +319,25 @@ export async function getPlanHealth(
  */
 export async function confirmPlan(
   userId: string,
-  request: TrainingPlanConfirmRequest
+  request: TrainingPlanConfirmRequest,
+  aiContext?: { authenticatedUserId: string; actorIsAdmin?: boolean }
 ): Promise<TrainingPlanConfirmResponse> {
   const result = await confirmTrainingPlan(userId, request);
+  if (request.planner_session_id) {
+    await trainingPlanPlannerService.recordPlannerSessionConfirmed(
+      aiContext?.authenticatedUserId ?? userId,
+      userId,
+      request.plan_id,
+      request.planner_session_id,
+      {
+        proposal_summary:
+          request.proposal_summary?.trim() ||
+          `Confirmed ${result.created_count} planned sessions.`,
+        sessions_written: result.created_count,
+      },
+      aiContext?.actorIsAdmin ?? false
+    );
+  }
   await refreshSnapshot(userId, request.plan_id);
   return result;
 }
@@ -414,6 +431,8 @@ export default {
   skipSession,
   rebuildSnapshot,
   getLatestSnapshot,
+  getFeasibilityFlags,
+  getPlanHealth,
   confirmPlan,
   exportPlan,
   importPlan,

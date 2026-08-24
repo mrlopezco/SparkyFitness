@@ -1,10 +1,8 @@
 import type {
   TrainingAthleteSnapshot,
   TrainingPlanDetail,
-  TrainingPlanProposeResponse,
 } from '@workspace/shared';
 import ActivePlanDetailsCard from './ActivePlanDetailsCard';
-import CoachPanel from './CoachPanel';
 import UpcomingWeekPanel from './UpcomingWeekPanel';
 import {
   useCreateAthleteSnapshotMutation,
@@ -17,7 +15,6 @@ interface TrainingOverviewTabProps {
   plan: TrainingPlanDetail | null | undefined;
   snapshot: TrainingAthleteSnapshot | null | undefined;
   today: string;
-  onPlanProposal: (proposal: TrainingPlanProposeResponse | null) => void;
   onOpenPlanTab: (date?: string) => void;
 }
 
@@ -28,7 +25,6 @@ export default function TrainingOverviewTab({
   plan,
   snapshot,
   today,
-  onPlanProposal,
   onOpenPlanTab,
 }: TrainingOverviewTabProps) {
   const snapshotMutation = useCreateAthleteSnapshotMutation();
@@ -68,12 +64,6 @@ export default function TrainingOverviewTab({
         today={today}
         onOpenPlanTab={onOpenPlanTab}
         planHealthSummary={planHealth?.summary_lines}
-      />
-
-      <CoachPanel
-        planId={activePlanId}
-        compact
-        onPlanProposal={onPlanProposal}
       />
     </div>
   );

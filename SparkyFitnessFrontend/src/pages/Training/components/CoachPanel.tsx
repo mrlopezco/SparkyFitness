@@ -27,15 +27,12 @@ import {
 
 interface CoachPanelProps {
   planId: string | undefined;
-  /** Hide the memories sidebar for the training-plan workspace layout. */
-  compact?: boolean;
   /** Fired when the coach returns a plan proposal to review. */
   onPlanProposal?: (proposal: TrainingPlanProposeResponse) => void;
 }
 
 export default function CoachPanel({
   planId,
-  compact = false,
   onPlanProposal,
 }: CoachPanelProps) {
   const { t } = useTranslation();
@@ -127,13 +124,7 @@ export default function CoachPanel({
   }
 
   return (
-    <div
-      className={
-        compact
-          ? 'grid gap-6'
-          : 'grid gap-6 lg:grid-cols-[20rem_1fr]'
-      }
-    >
+    <div className="grid gap-6 lg:grid-cols-[20rem_1fr]">
       <div className="space-y-6">
         <Card>
           <CardHeader>
@@ -143,7 +134,7 @@ export default function CoachPanel({
             <CardDescription>
               {t(
                 'training.coachChat.sessionsDescription',
-                'Each chat is summarised when you close it, so the coach keeps context without replaying every message.'
+                'Report how training, recovery, and life are going. The coach uses your plan, workouts, wearables, and food diary — then may suggest plan changes you confirm on the Training plan tab.'
               )}
             </CardDescription>
           </CardHeader>
@@ -157,7 +148,7 @@ export default function CoachPanel({
               <p className="text-sm text-muted-foreground">
                 {t(
                   'training.coachChat.noSessions',
-                  'No chats yet. Start one to ask the coach about this block.'
+                  'No chats yet. Start one to tell the coach how the block is going.'
                 )}
               </p>
             )}
@@ -209,7 +200,6 @@ export default function CoachPanel({
           </CardContent>
         </Card>
 
-        {!compact && (
         <Card>
           <CardHeader>
             <CardTitle className="text-xl font-bold tracking-tight sm:text-2xl">
@@ -303,7 +293,6 @@ export default function CoachPanel({
             </div>
           </CardContent>
         </Card>
-        )}
       </div>
 
       <Card>

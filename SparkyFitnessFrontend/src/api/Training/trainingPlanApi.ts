@@ -28,6 +28,12 @@ import {
   trainingPlanDetailSchema,
   trainingPlanProposeRequestSchema,
   trainingPlanProposeResponseSchema,
+  trainingPlanPlannerCreateSessionRequestSchema,
+  trainingPlanPlannerDraftSessionRequestSchema,
+  trainingPlanPlannerSendMessageRequestSchema,
+  trainingPlanPlannerSessionDetailSchema,
+  trainingPlanPlannerSessionSchema,
+  trainingPlanPlannerChatResponseSchema,
   trainingPlanSchema,
   trainingPlanSessionSchema,
   trainingPlanUpdateRequestSchema,
@@ -75,6 +81,12 @@ import {
   type TrainingPlanImportResponse,
   type TrainingPlanProposeRequest,
   type TrainingPlanProposeResponse,
+  type TrainingPlanPlannerCreateSessionRequest,
+  type TrainingPlanPlannerDraftSessionRequest,
+  type TrainingPlanPlannerSendMessageRequest,
+  type TrainingPlanPlannerSession,
+  type TrainingPlanPlannerSessionDetail,
+  type TrainingPlanPlannerChatResponse,
   type TrainingPlanSession,
   type TrainingPlanUpdateRequest,
   type TrainingSessionAiReviewRequest,
@@ -241,6 +253,75 @@ export async function proposeTrainingPlan(
     body: validatedRequest,
   });
   return trainingPlanProposeResponseSchema.parse(response);
+}
+
+const trainingPlannerSessionsResponseSchema = z.object({
+  sessions: z.array(trainingPlanPlannerSessionSchema),
+});
+
+export async function fetchTrainingPlannerSessions(
+  planId: string,
+  query?: { status?: 'active' | 'confirmed' | 'cancelled' }
+): Promise<TrainingPlanPlannerSession[]> {
+  const params = new URLSearchParams();
+  if (query?.status) params.set('status', query.status);
+  const suffix = params.size ? `?${params.toString()}` : '';
+  const response = await apiCall(
+    `/training-plans/${planId}/planner/sessions${suffix}`,
+    { method: 'GET' }
+  );
+  return trainingPlannerSessionsResponseSchema.parse(response).sessions;
+}
+
+export async function createTrainingPlannerSession(
+  planId: string,
+  payload: TrainingPlanPlannerCreateSessionRequest
+): Promise<TrainingPlanPlannerSessionDetail> {
+  const validatedRequest =
+    trainingPlanPlannerCreateSessionRequestSchema.parse(payload);
+  const response = await apiCall(`/training-plans/${planId}/planner/sessions`, {
+    method: 'POST',
+    body: validatedRequest,
+  });
+  return trainingPlanPlannerSessionDetailSchema.parse(response);
+}
+
+export async function sendTrainingPlannerMessage(
+  planId: string,
+  sessionId: string,
+  payload: TrainingPlanPlannerSendMessageRequest
+): Promise<TrainingPlanPlannerChatResponse> {
+  const validatedRequest =
+    trainingPlanPlannerSendMessageRequestSchema.parse(payload);
+  const response = await apiCall(
+    `/training-plans/${planId}/planner/sessions/${sessionId}/messages`,
+    { method: 'POST', body: validatedRequest }
+  );
+  return trainingPlanPlannerChatResponseSchema.parse(response);
+}
+
+export async function draftTrainingPlannerSession(
+  planId: string,
+  sessionId: string,
+  payload: TrainingPlanPlannerDraftSessionRequest = {}
+): Promise<TrainingPlanProposeResponse> {
+  const validatedRequest =
+    trainingPlanPlannerDraftSessionRequestSchema.parse(payload);
+  const response = await apiCall(
+    `/training-plans/${planId}/planner/sessions/${sessionId}/draft`,
+    { method: 'POST', body: validatedRequest }
+  );
+  return trainingPlanProposeResponseSchema.parse(response);
+}
+
+export async function cancelTrainingPlannerSession(
+  planId: string,
+  sessionId: string
+): Promise<void> {
+  await apiCall(
+    `/training-plans/${planId}/planner/sessions/${sessionId}/cancel`,
+    { method: 'POST', body: {} }
+  );
 }
 
 export async function confirmTrainingPlan(

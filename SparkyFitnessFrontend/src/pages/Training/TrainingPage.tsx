@@ -71,8 +71,10 @@ export default function TrainingPage() {
 
   const [activeTab, setActiveTab] = useState<TrainingTabId>('overview');
   const [pickedPlanId, setPickedPlanId] = useState<string | null>(null);
-  const [coachNotes, setCoachNotes] = useState('');
   const [proposal, setProposal] = useState<TrainingPlanProposeResponse | null>(
+    null
+  );
+  const [plannerSessionId, setPlannerSessionId] = useState<string | null>(
     null
   );
   const [planPendingDelete, setPlanPendingDelete] =
@@ -118,9 +120,11 @@ export default function TrainingPage() {
   const importMutation = useImportTrainingPlanMutation();
 
   const openProposalInWorkspace = (
-    next: TrainingPlanProposeResponse | null
+    next: TrainingPlanProposeResponse | null,
+    sessionId?: string | null
   ) => {
     setProposal(next);
+    setPlannerSessionId(sessionId ?? null);
     if (next) setActiveTab('plan');
   };
 
@@ -199,7 +203,6 @@ export default function TrainingPage() {
             plan={activePlanDetail}
             snapshot={snapshot}
             today={today}
-            onPlanProposal={openProposalInWorkspace}
             onOpenPlanTab={() => {
               if (activePlanSummary) setPickedPlanId(activePlanSummary.id);
               setActiveTab('plan');
@@ -249,9 +252,8 @@ export default function TrainingPage() {
         <TabsContent value="plan" className="focus-visible:outline-none">
           <TrainingPlanWorkspace
             planId={selectedPlanId}
-            coachNotes={coachNotes}
-            onCoachNotesChange={setCoachNotes}
             proposal={proposal}
+            plannerSessionId={plannerSessionId}
             onProposal={openProposalInWorkspace}
           />
         </TabsContent>

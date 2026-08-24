@@ -122,6 +122,7 @@ BEGIN
     'training_coach_memories',
     'training_fitness_tests',
     'training_coaching_signals',
+    'training_plan_planner_sessions',
     'ghd_sync_runs',
     'ghd_activity_map',
     'ghd_history_import_jobs',
@@ -937,6 +938,28 @@ USING (EXISTS (
 WITH CHECK (EXISTS (
   SELECT 1 FROM public.training_plan_sessions tps
   WHERE tps.id = training_session_completions.plan_session_id
+    AND has_diary_access(tps.user_id)
+));
+
+SELECT create_diary_policy('training_plan_planner_sessions');
+
+DROP POLICY IF EXISTS select_policy ON public.training_plan_planner_messages;
+DROP POLICY IF EXISTS modify_policy ON public.training_plan_planner_messages;
+CREATE POLICY select_policy ON public.training_plan_planner_messages FOR SELECT TO PUBLIC
+USING (EXISTS (
+  SELECT 1 FROM public.training_plan_planner_sessions tps
+  WHERE tps.id = training_plan_planner_messages.session_id
+    AND has_diary_read_access(tps.user_id)
+));
+CREATE POLICY modify_policy ON public.training_plan_planner_messages FOR ALL TO PUBLIC
+USING (EXISTS (
+  SELECT 1 FROM public.training_plan_planner_sessions tps
+  WHERE tps.id = training_plan_planner_messages.session_id
+    AND has_diary_access(tps.user_id)
+))
+WITH CHECK (EXISTS (
+  SELECT 1 FROM public.training_plan_planner_sessions tps
+  WHERE tps.id = training_plan_planner_messages.session_id
     AND has_diary_access(tps.user_id)
 ));
 
