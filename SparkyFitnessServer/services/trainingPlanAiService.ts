@@ -420,10 +420,12 @@ export async function buildPlanContext(
       notes: goal.notes,
     })),
     commitments: commitments.map((commitment) => ({
+      kind: commitment.kind ?? 'standard',
       title: commitment.title,
       activity_type: commitment.activity_type,
       intensity: commitment.intensity,
       date: commitment.date,
+      end_date: commitment.end_date ?? null,
       recurrence_rule: commitment.recurrence_rule,
       start_time: commitment.start_time,
       duration_minutes: commitment.duration_minutes,

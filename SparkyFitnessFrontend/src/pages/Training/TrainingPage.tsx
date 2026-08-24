@@ -26,7 +26,7 @@ import {
   useTrainingPlans,
   useUpdateTrainingPlanMutation,
 } from '@/hooks/Training/useTrainingPlans';
-import CoachPanel from './components/CoachPanel';
+import TrainingAiChatsPanel from './components/TrainingAiChatsPanel';
 import CreatePlanCard from './components/CreatePlanCard';
 import FitnessTestsPanel from './components/FitnessTestsPanel';
 import TrainingOverviewTab from './components/TrainingOverviewTab';
@@ -45,7 +45,7 @@ const TRAINING_TABS = [
   {
     id: 'coach',
     labelKey: 'training.tabs.coachChats',
-    labelDefault: 'Coach Chats',
+    labelDefault: 'AI Chats',
     icon: MessageSquare,
   },
   {
@@ -254,12 +254,13 @@ export default function TrainingPage() {
             planId={selectedPlanId}
             proposal={proposal}
             plannerSessionId={plannerSessionId}
+            onOpenAiChats={() => setActiveTab('coach')}
             onProposal={openProposalInWorkspace}
           />
         </TabsContent>
 
         <TabsContent value="coach" className="focus-visible:outline-none">
-          <CoachPanel
+          <TrainingAiChatsPanel
             planId={selectedPlanId}
             onPlanProposal={openProposalInWorkspace}
           />

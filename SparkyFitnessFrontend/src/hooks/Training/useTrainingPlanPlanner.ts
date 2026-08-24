@@ -11,6 +11,7 @@ import {
   createTrainingPlannerSession,
   draftTrainingPlannerSession,
   fetchTrainingPlannerSessions,
+  fetchTrainingPlannerSessionDetail,
   sendTrainingPlannerMessage,
 } from '@/api/Training/trainingPlanApi';
 
@@ -19,6 +20,29 @@ export function usePlannerChangeHistory(planId: string | undefined) {
     queryKey: trainingPlanKeys.plannerHistory(planId ?? 'none'),
     queryFn: () => fetchTrainingPlannerSessions(planId!, { status: 'confirmed' }),
     enabled: Boolean(planId),
+  });
+}
+
+export function usePlannerSessions(planId: string | undefined) {
+  return useQuery({
+    queryKey: trainingPlanKeys.plannerSessions(planId ?? 'none'),
+    queryFn: () => fetchTrainingPlannerSessions(planId!),
+    enabled: Boolean(planId),
+  });
+}
+
+export function usePlannerSessionDetail(
+  planId: string | undefined,
+  sessionId: string | undefined
+) {
+  return useQuery({
+    queryKey: [
+      ...trainingPlanKeys.plannerSessions(planId ?? 'none'),
+      'detail',
+      sessionId ?? 'none',
+    ],
+    queryFn: () => fetchTrainingPlannerSessionDetail(planId!, sessionId!),
+    enabled: Boolean(planId && sessionId),
   });
 }
 
@@ -41,6 +65,7 @@ export function useCreatePlannerSessionMutation() {
 }
 
 export function useSendPlannerMessageMutation() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({
       planId,
@@ -51,6 +76,15 @@ export function useSendPlannerMessageMutation() {
       sessionId: string;
       payload: TrainingPlanPlannerSendMessageRequest;
     }) => sendTrainingPlannerMessage(planId, sessionId, payload),
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: [
+          ...trainingPlanKeys.plannerSessions(variables.planId),
+          'detail',
+          variables.sessionId,
+        ],
+      });
+    },
   });
 }
 

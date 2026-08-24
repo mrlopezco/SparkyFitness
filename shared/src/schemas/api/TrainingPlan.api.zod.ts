@@ -90,12 +90,17 @@ export const trainingGoalPayloadSchema = z.object({
   sort_order: z.number().int().nonnegative().optional(),
 });
 
+export const trainingCommitmentKindSchema = z.enum(["standard", "vacation"]);
+
 export const trainingCommitmentPayloadSchema = z.object({
+  kind: trainingCommitmentKindSchema.default("standard"),
   title: z.string().min(1).max(200),
   activity_type: z.string().min(1).max(80),
   intensity: trainingCommitmentIntensitySchema.default("moderate"),
-  /** One-off date; mutually exclusive with recurrence_rule for MVP. */
+  /** One-off or vacation start; mutually exclusive with recurrence_rule for standard items. */
   date: dayStringSchema.nullable().optional(),
+  /** Vacation end (inclusive); required when kind is vacation. */
+  end_date: dayStringSchema.nullable().optional(),
   /** RRULE or simple weekday list e.g. "BYDAY=TU,TH". */
   recurrence_rule: z.string().max(500).nullable().optional(),
   start_time: z.string().max(16).nullable().optional(),
@@ -605,6 +610,9 @@ export type TrainingCalendarResponse = z.infer<
 >;
 export type TrainingCommitmentIntensity = z.infer<
   typeof trainingCommitmentIntensitySchema
+>;
+export type TrainingCommitmentKind = z.infer<
+  typeof trainingCommitmentKindSchema
 >;
 
 // --- Phase 2: Coach ---

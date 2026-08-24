@@ -318,10 +318,12 @@ async function buildCoachContext(
       weight_delta_kg: goal.weight_delta_kg,
     })),
     commitments: commitments.map((commitment) => ({
+      kind: commitment.kind ?? 'standard',
       title: commitment.title,
       activity_type: commitment.activity_type,
       intensity: commitment.intensity,
       date: commitment.date,
+      end_date: commitment.end_date ?? null,
       recurrence_rule: commitment.recurrence_rule,
       blocks_training: commitment.blocks_training,
     })),

@@ -2,6 +2,7 @@ import type { z } from 'zod';
 import { getClient, getSystemClient } from '../db/poolManager.js';
 import {
   trainingCommitmentIntensitySchema,
+  trainingCommitmentKindSchema,
   trainingGoalTypeSchema,
   trainingPlanStatusSchema,
   trainingPlanIntakePayloadSchema,
@@ -92,8 +93,9 @@ const GOAL_COLUMNS = `id, plan_id, goal_type, title,
     race_distance_meters, race_target_seconds, weight_target_kg,
     weight_delta_kg, notes, sort_order, created_at, updated_at`;
 
-const COMMITMENT_COLUMNS = `id, plan_id, title, activity_type, intensity,
+const COMMITMENT_COLUMNS = `id, plan_id, kind, title, activity_type, intensity,
     to_char(commitment_date, 'YYYY-MM-DD') AS commitment_date,
+    to_char(end_date, 'YYYY-MM-DD') AS end_date,
     recurrence_rule, start_time, duration_minutes, blocks_training, notes,
     created_at, updated_at`;
 
@@ -144,10 +146,12 @@ interface GoalRow {
 interface CommitmentRow {
   id: string;
   plan_id: string;
+  kind: string;
   title: string;
   activity_type: string;
   intensity: string;
   commitment_date: string | null;
+  end_date: string | null;
   recurrence_rule: string | null;
   start_time: string | null;
   duration_minutes: number | null;
@@ -238,6 +242,7 @@ function mapCommitment(row: CommitmentRow): TrainingCommitment {
   return {
     id: row.id,
     plan_id: row.plan_id,
+    kind: parseEnum(trainingCommitmentKindSchema, row.kind, 'standard'),
     title: row.title,
     activity_type: row.activity_type,
     intensity: parseEnum(
@@ -246,6 +251,7 @@ function mapCommitment(row: CommitmentRow): TrainingCommitment {
       'moderate'
     ),
     date: row.commitment_date,
+    end_date: row.end_date,
     recurrence_rule: row.recurrence_rule,
     start_time: row.start_time,
     duration_minutes: row.duration_minutes,
@@ -357,17 +363,19 @@ async function insertCommitments(
   for (const commitment of commitments) {
     const result = await client.query<CommitmentRow>(
       `INSERT INTO training_commitments
-         (plan_id, user_id, title, activity_type, intensity, commitment_date,
-          recurrence_rule, start_time, duration_minutes, blocks_training, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+         (plan_id, user_id, kind, title, activity_type, intensity, commitment_date,
+          end_date, recurrence_rule, start_time, duration_minutes, blocks_training, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        RETURNING ${COMMITMENT_COLUMNS}`,
       [
         planId,
         userId,
+        commitment.kind ?? 'standard',
         commitment.title,
         commitment.activity_type,
         commitment.intensity,
         commitment.date ?? null,
+        commitment.end_date ?? null,
         commitment.recurrence_rule ?? null,
         commitment.start_time ?? null,
         commitment.duration_minutes ?? null,

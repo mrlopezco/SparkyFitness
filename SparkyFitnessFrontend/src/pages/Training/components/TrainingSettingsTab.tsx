@@ -4,6 +4,7 @@ import {
   Card,
   CardContent,
 } from '@/components/ui/card';
+import CoachMemoriesCard from './CoachMemoriesCard';
 import GoalsCommitmentsEditor from './GoalsCommitmentsEditor';
 import TrainingPlansSettingsCard from './TrainingPlansSettingsCard';
 
@@ -73,7 +74,10 @@ export default function TrainingSettingsTab({
       />
 
       {planDetail ? (
-        <GoalsCommitmentsEditor key={planDetail.id} plan={planDetail} />
+        <>
+          <CoachMemoriesCard planId={selectedPlanId} />
+          <GoalsCommitmentsEditor key={planDetail.id} plan={planDetail} />
+        </>
       ) : (
         <Card>
           <CardContent className="py-10">

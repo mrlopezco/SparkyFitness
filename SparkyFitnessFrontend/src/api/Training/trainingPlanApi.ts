@@ -273,6 +273,17 @@ export async function fetchTrainingPlannerSessions(
   return trainingPlannerSessionsResponseSchema.parse(response).sessions;
 }
 
+export async function fetchTrainingPlannerSessionDetail(
+  planId: string,
+  sessionId: string
+): Promise<TrainingPlanPlannerSessionDetail> {
+  const response = await apiCall(
+    `/training-plans/${planId}/planner/sessions/${sessionId}`,
+    { method: 'GET' }
+  );
+  return trainingPlanPlannerSessionDetailSchema.parse(response);
+}
+
 export async function createTrainingPlannerSession(
   planId: string,
   payload: TrainingPlanPlannerCreateSessionRequest

@@ -16,6 +16,7 @@ interface TrainingPlanWorkspaceProps {
   planId: string | undefined;
   proposal: TrainingPlanProposeResponse | null;
   plannerSessionId: string | null;
+  onOpenAiChats: () => void;
   onProposal: (
     proposal: TrainingPlanProposeResponse | null,
     plannerSessionId?: string | null
@@ -26,6 +27,7 @@ export default function TrainingPlanWorkspace({
   planId,
   proposal,
   plannerSessionId,
+  onOpenAiChats,
   onProposal,
 }: TrainingPlanWorkspaceProps) {
   const { t } = useTranslation();
@@ -76,12 +78,7 @@ export default function TrainingPlanWorkspace({
 
   return (
     <div className="space-y-6">
-      <PlanPlannerPanel
-        planId={planId}
-        onProposal={(nextProposal, sessionId) =>
-          onProposal(nextProposal, sessionId)
-        }
-      />
+      <PlanPlannerPanel planId={planId} onOpenAiChats={onOpenAiChats} />
 
       {proposal && (
         <PlanProposalPanel

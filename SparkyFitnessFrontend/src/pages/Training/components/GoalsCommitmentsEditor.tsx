@@ -10,6 +10,7 @@ import type {
   TrainingPlanDetail,
 } from '@workspace/shared';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   Card,
   CardContent,
@@ -19,6 +20,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -77,10 +79,12 @@ function toCommitmentPayloads(
   commitments: TrainingCommitment[]
 ): TrainingCommitmentPayload[] {
   return commitments.map((commitment) => ({
+    kind: commitment.kind ?? 'standard',
     title: commitment.title,
     activity_type: commitment.activity_type,
     intensity: commitment.intensity,
     date: commitment.date ?? null,
+    end_date: commitment.end_date ?? null,
     recurrence_rule: commitment.recurrence_rule ?? null,
     start_time: commitment.start_time ?? null,
     duration_minutes: commitment.duration_minutes ?? null,
@@ -137,15 +141,25 @@ export default function GoalsCommitmentsEditor({
     saveCommitments.mutate({
       planId: plan.id,
       commitments: commitments
-        .filter(
-          (commitment) =>
-            commitment.title.trim().length > 0 &&
-            commitment.activity_type.trim().length > 0
-        )
+        .filter((commitment) => {
+          if (commitment.title.trim().length === 0) return false;
+          if (commitment.kind === 'vacation') {
+            return (
+              commitment.date &&
+              commitment.end_date &&
+              commitment.end_date >= commitment.date
+            );
+          }
+          return commitment.activity_type.trim().length > 0;
+        })
         .map((commitment) => ({
           ...commitment,
           title: commitment.title.trim(),
-          activity_type: commitment.activity_type.trim(),
+          activity_type:
+            commitment.kind === 'vacation'
+              ? 'vacation'
+              : commitment.activity_type.trim(),
+          kind: commitment.kind ?? 'standard',
         })),
     });
   };
@@ -279,11 +293,18 @@ export default function GoalsCommitmentsEditor({
               {t('training.commitments.empty', 'No commitments yet.')}
             </p>
           )}
-          {commitments.map((commitment, index) => (
+          {commitments.map((commitment, index) => {
+            const isVacation = commitment.kind === 'vacation';
+            return (
             <div
               key={`commitment-${index}`}
               className="space-y-3 rounded-md border p-3"
             >
+              {isVacation && (
+                <Badge variant="secondary">
+                  {t('training.commitments.vacationBadge', 'Vacation / travel')}
+                </Badge>
+              )}
               <div className="grid gap-3 sm:grid-cols-[1fr_1fr_9rem_auto]">
                 <div className="space-y-1">
                   <Label
@@ -295,11 +316,20 @@ export default function GoalsCommitmentsEditor({
                   <Input
                     id={`commitment-title-${index}`}
                     value={commitment.title}
+                    placeholder={
+                      isVacation
+                        ? t(
+                            'training.commitments.vacationTitlePlaceholder',
+                            'Ski trip'
+                          )
+                        : undefined
+                    }
                     onChange={(event) =>
                       updateCommitment(index, { title: event.target.value })
                     }
                   />
                 </div>
+                {!isVacation && (
                 <div className="space-y-1">
                   <Label
                     htmlFor={`commitment-activity-${index}`}
@@ -321,6 +351,8 @@ export default function GoalsCommitmentsEditor({
                     }
                   />
                 </div>
+                )}
+                {!isVacation && (
                 <div className="space-y-1">
                   <Label
                     htmlFor={`commitment-intensity-${index}`}
@@ -348,6 +380,7 @@ export default function GoalsCommitmentsEditor({
                     </SelectContent>
                   </Select>
                 </div>
+                )}
                 <div className="flex items-end">
                   <Button
                     variant="ghost"
@@ -366,6 +399,73 @@ export default function GoalsCommitmentsEditor({
                   </Button>
                 </div>
               </div>
+              {isVacation ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label
+                      htmlFor={`commitment-vacation-start-${index}`}
+                      className="text-xs"
+                    >
+                      {t('training.commitments.vacationStart', 'Start date')}
+                    </Label>
+                    <Input
+                      id={`commitment-vacation-start-${index}`}
+                      type="date"
+                      value={commitment.date ?? ''}
+                      onChange={(event) =>
+                        updateCommitment(index, {
+                          date: event.target.value || null,
+                          recurrence_rule: null,
+                          end_date: commitment.end_date,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label
+                      htmlFor={`commitment-vacation-end-${index}`}
+                      className="text-xs"
+                    >
+                      {t('training.commitments.vacationEnd', 'End date')}
+                    </Label>
+                    <Input
+                      id={`commitment-vacation-end-${index}`}
+                      type="date"
+                      value={commitment.end_date ?? ''}
+                      onChange={(event) =>
+                        updateCommitment(index, {
+                          end_date: event.target.value || null,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1 sm:col-span-2">
+                    <Label
+                      htmlFor={`commitment-vacation-notes-${index}`}
+                      className="text-xs"
+                    >
+                      {t(
+                        'training.commitments.vacationWorkouts',
+                        'What training is possible?'
+                      )}
+                    </Label>
+                    <Textarea
+                      id={`commitment-vacation-notes-${index}`}
+                      rows={3}
+                      value={commitment.notes ?? ''}
+                      placeholder={t(
+                        'training.commitments.vacationNotesPlaceholder',
+                        'e.g. Hotel gym for easy 30 min; skiing most days — treat as cross-training, no hard runs'
+                      )}
+                      onChange={(event) =>
+                        updateCommitment(index, {
+                          notes: event.target.value || null,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+              ) : (
               <div className="grid gap-3 sm:grid-cols-[9rem_1fr_10rem_auto]">
                 <div className="space-y-1">
                   <Label
@@ -479,8 +579,10 @@ export default function GoalsCommitmentsEditor({
                   </Label>
                 </div>
               </div>
+              )}
             </div>
-          ))}
+            );
+          })}
           <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
@@ -488,6 +590,7 @@ export default function GoalsCommitmentsEditor({
                 setCommitments((prev) => [
                   ...prev,
                   {
+                    kind: 'standard',
                     title: '',
                     activity_type: '',
                     intensity: 'moderate',
@@ -500,6 +603,28 @@ export default function GoalsCommitmentsEditor({
             >
               <Plus className="mr-2 h-4 w-4" />
               {t('training.commitments.add', 'Add commitment')}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() =>
+                setCommitments((prev) => [
+                  ...prev,
+                  {
+                    kind: 'vacation',
+                    title: '',
+                    activity_type: 'vacation',
+                    intensity: 'low',
+                    blocks_training: false,
+                    date: null,
+                    end_date: null,
+                    recurrence_rule: null,
+                    notes: null,
+                  },
+                ])
+              }
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              {t('training.commitments.addVacation', 'Add vacation')}
             </Button>
             <Button
               disabled={saveCommitments.isPending}

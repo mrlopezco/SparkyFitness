@@ -89,6 +89,14 @@ jest.mock('@/hooks/Training/useTrainingCoach', () => ({
   useDeleteCoachMemoryMutation: () => mockIdleMutation(),
 }));
 
+jest.mock('@/hooks/Training/useTrainingPlanPlanner', () => ({
+  usePlannerSessions: () => ({ data: [], isLoading: false }),
+  usePlannerSessionDetail: () => ({ data: undefined, isLoading: false }),
+  useCreatePlannerSessionMutation: () => mockIdleMutation(),
+  useSendPlannerMessageMutation: () => mockIdleMutation(),
+  useDraftPlannerSessionMutation: () => mockIdleMutation(),
+}));
+
 describe('CoachPanel', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -102,20 +110,20 @@ describe('CoachPanel', () => {
     expect(screen.getByText('Select or create a plan first.')).toBeTruthy();
   });
 
-  it('renders the chat list, thread and memories', () => {
+  it('renders the conversation list and thread', () => {
     render(<CoachPanel planId={PLAN_ID} />);
 
     expect(screen.getByText('I missed Tuesday intervals.')).toBeTruthy();
     expect(
       screen.getByText('Move the quality session to Thursday.')
     ).toBeTruthy();
-    expect(screen.getByText('injury_history')).toBeTruthy();
+    expect(screen.getByText('Conversations')).toBeTruthy();
   });
 
   it('sends a message to the active session', async () => {
     render(<CoachPanel planId={PLAN_ID} />);
 
-    fireEvent.change(screen.getByLabelText('Message'), {
+    fireEvent.change(screen.getByLabelText('Your message'), {
       target: { value: 'Should I still race on Sunday?' },
     });
     fireEvent.click(screen.getByRole('button', { name: /Send/i }));
@@ -125,29 +133,6 @@ describe('CoachPanel', () => {
         planId: PLAN_ID,
         sessionId: SESSION_ID,
         payload: { content: 'Should I still race on Sunday?' },
-      });
-    });
-  });
-
-  it('adds a coach memory', async () => {
-    render(<CoachPanel planId={PLAN_ID} />);
-
-    fireEvent.change(screen.getByLabelText('Label'), {
-      target: { value: 'schedule' },
-    });
-    fireEvent.change(screen.getByLabelText('Detail'), {
-      target: { value: 'No training before 6am' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /Add memory/i }));
-
-    await waitFor(() => {
-      expect(mockUpsertMemory).toHaveBeenCalledWith({
-        planId: PLAN_ID,
-        payload: {
-          memory_key: 'schedule',
-          memory_value: 'No training before 6am',
-          source: 'user',
-        },
       });
     });
   });

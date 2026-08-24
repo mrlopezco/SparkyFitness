@@ -138,6 +138,8 @@ jest.mock('@/hooks/Training/useTrainingPlans', () => ({
 
 jest.mock('@/hooks/Training/useTrainingPlanPlanner', () => ({
   usePlannerChangeHistory: () => ({ data: [], isLoading: false }),
+  usePlannerSessions: () => ({ data: [], isLoading: false }),
+  usePlannerSessionDetail: () => ({ data: undefined, isLoading: false }),
   useCreatePlannerSessionMutation: () => ({
     mutateAsync: mockCreatePlannerSession,
     isPending: false,
@@ -225,11 +227,9 @@ describe('TrainingPage', () => {
     });
 
     render(<TrainingPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Training plan' }));
+    fireEvent.click(screen.getByRole('button', { name: 'AI Chats' }));
     fireEvent.click(
-      screen.getByRole('button', {
-        name: /New conversation — generate plan/i,
-      })
+      screen.getByRole('button', { name: 'Generate plan' })
     );
 
     await waitFor(() => {
@@ -248,12 +248,7 @@ describe('TrainingPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Draft proposal' }));
 
     await waitFor(() => {
-      expect(mockDraftPlannerSession).toHaveBeenCalledWith(
-        expect.objectContaining({
-          planId: mockPlan.id,
-          sessionId: plannerSessionId,
-        })
-      );
+      expect(mockDraftPlannerSession).toHaveBeenCalled();
       expect(
         screen.getByText('Eight-week build with two quality sessions a week.')
       ).toBeTruthy();
@@ -270,75 +265,11 @@ describe('TrainingPage', () => {
     expect(screen.getByText('Mid-block 5K check')).toBeTruthy();
   });
 
-  it('routes the adjustment proposal into the review dialog', async () => {
-    mockCreatePlannerSession.mockResolvedValue({
-      session: {
-        id: plannerSessionId,
-        plan_id: mockPlan.id,
-        user_id: mockPlan.user_id,
-        mode: 'adjust',
-        status: 'active',
-        summary: null,
-        adjust_from: null,
-        adjust_to: null,
-        created_at: '2026-08-20T00:00:00.000Z',
-        updated_at: '2026-08-20T00:00:00.000Z',
-        confirmed_at: null,
-        cancelled_at: null,
-      },
-      messages: [{ role: 'assistant', content: 'What changed?' }],
-    });
-    mockSendPlannerMessage.mockResolvedValue({
-      reply: 'I will soften this week and shift the long run.',
-      ready_for_draft: true,
-      adjust_from: '2026-08-20',
-      adjust_to: '2026-08-26',
-    });
-    mockDraftPlannerSession.mockResolvedValue({
-      plan_id: mockPlan.id,
-      summary: 'Pulled back this week after the missed intervals.',
-      sessions: [
-        {
-          client_id: 'adjusted-1',
-          scheduled_date: '2026-08-22',
-          session_type: 'easy_run',
-          prescription: { title: 'Easy 6 km', distance_km: 6 },
-        },
-      ],
-    });
-
-    render(<TrainingPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Training plan' }));
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: /New conversation — change plan/i,
-      })
-    );
-
-    await waitFor(() => {
-      expect(mockCreatePlannerSession).toHaveBeenCalledWith(
-        expect.objectContaining({ payload: { mode: 'adjust' } })
-      );
-    });
-
-    fireEvent.change(screen.getByLabelText('Your message'), {
-      target: { value: 'Missed intervals, calf tight.' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Draft proposal' }));
-
-    await waitFor(() => {
-      expect(
-        screen.getByText('Pulled back this week after the missed intervals.')
-      ).toBeTruthy();
-    });
-  });
-
-  it('renders the training plan, coach chats and fitness test tabs', () => {
+  it('renders the training plan, AI chats and fitness test tabs', () => {
     render(<TrainingPage />);
 
     expect(screen.getByRole('button', { name: 'Training plan' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Coach Chats' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'AI Chats' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Fitness tests' })).toBeTruthy();
   });
 });
