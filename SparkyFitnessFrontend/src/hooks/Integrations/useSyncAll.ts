@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { syncHevyData } from '@/api/Integrations/integrations';
+import { syncGarminHealthData } from '@/api/Integrations/garminHealthDataApi';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from 'react-i18next';
 import { MANUAL_SYNC_PROVIDERS } from '@/constants/integrationConstants';
@@ -21,6 +22,7 @@ export const useSyncAllMutation = () => {
 
   return useMutation({
     mutationFn: async (providers: DataProvider[]) => {
+      // garmin / garmin_health_data / hevy store tokens outside encrypted_access_token
       const activeSyncProviders = providers.filter(
         (p) =>
           p.is_active &&
@@ -29,6 +31,7 @@ export const useSyncAllMutation = () => {
           ) &&
           (p.provider_type === 'hevy' ||
             p.provider_type === 'garmin' ||
+            p.provider_type === 'garmin_health_data' ||
             p.has_token)
       );
 
@@ -59,6 +62,9 @@ export const useSyncAllMutation = () => {
               break;
             case 'garmin':
               await handleManualSyncGarmin();
+              break;
+            case 'garmin_health_data':
+              await syncGarminHealthData();
               break;
             case 'hevy':
               await syncHevyData(false, provider.id);
