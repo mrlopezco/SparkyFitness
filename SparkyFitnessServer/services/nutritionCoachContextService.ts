@@ -10,8 +10,9 @@ import {
 } from '@workspace/shared';
 import reportRepository from '../models/reportRepository.js';
 import goalRepository from '../models/goalRepository.js';
-import trainingPlanRepository from '../models/trainingPlanRepository.js';
 import nutritionCoachRepository from '../models/nutritionCoachRepository.js';
+import trainingPlanRepository from '../models/trainingPlanRepository.js';
+import { buildNutritionDiaryAnalytics } from './trainingNutritionSnapshotService.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 
 export const LONG_TERM_DAYS = 365;
@@ -466,8 +467,7 @@ export async function buildContextPayload(
     longRows,
     mealRows,
     topFoods,
-    mealStructure,
-    timeBuckets,
+    diaryAnalytics,
     activity42,
     activity90,
     activityMaps90,
@@ -489,16 +489,7 @@ export async function buildContextPayload(
       mealStart,
       asOfDate
     ),
-    nutritionCoachRepository.getMealStructureAggregates(
-      userId,
-      mealStart,
-      asOfDate
-    ),
-    nutritionCoachRepository.getEntryTimeBucketShares(
-      userId,
-      mealStart,
-      asOfDate
-    ),
+    buildNutritionDiaryAnalytics(userId, mealStart, asOfDate),
     buildActivitySummary(userId, act42Start, asOfDate, ACTIVITY_WINDOW_42),
     buildActivitySummary(userId, act90Start, asOfDate, ACTIVITY_WINDOW_90),
     activityMaps(userId, mealStart, asOfDate),
@@ -527,10 +518,26 @@ export async function buildContextPayload(
       : null,
   };
 
+  const { meal_structure: mealStructure, entry_time_buckets: timeBuckets, timing_coverage: timingCoverage } =
+    diaryAnalytics;
+
   const notes: string[] = [];
   if (logging_coverage.days_logged_365 < 30) {
     notes.push(
       'Food diary coverage is thin over the last year; keep critique tentative and ask the athlete to log more consistently.'
+    );
+  }
+  if (
+    timingCoverage.calorie_share_inferred_from_meal_slot_pct >= 40 &&
+    timingCoverage.calorie_share_with_clock_time_pct < 20
+  ) {
+    notes.push(
+      'Most logged calories use meal slot (Breakfast/Lunch/etc.) without clock time; use meal_structure and entry_time_buckets (meal-slot inferred) for timing critique — do not ask the athlete to add clock times unless they want finer detail.'
+    );
+  }
+  if (timingCoverage.calorie_share_untagged_pct >= 25) {
+    notes.push(
+      'A large share of calories lack both clock time and meal slot; suggest picking a meal type when logging.'
     );
   }
 
@@ -557,10 +564,8 @@ export async function buildContextPayload(
     long_term_monthly: buildMonthlyRollups(longRows),
     recent_weekly: buildWeeklyRollups(longRows),
     meal_structure: mealStructure,
-    entry_time_buckets: timeBuckets.map((row) => ({
-      bucket: row.bucket as NutritionCoachContextPayload['entry_time_buckets'][number]['bucket'],
-      calorie_share_pct: row.calorie_share_pct,
-    })),
+    entry_time_buckets: timeBuckets,
+    timing_coverage: timingCoverage,
     top_foods: topFoods,
     activity_42d: activity42,
     activity_90d: activity90,

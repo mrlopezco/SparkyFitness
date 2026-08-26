@@ -4927,7 +4927,7 @@
       "plan": "Training plan",
       "calendar": "Training plan",
       "coach": "Coach Chats",
-      "coachChats": "Coach Chats",
+      "coachChats": "Training Coach",
       "nutritionCoach": "Nutrition coach",
       "fitnessTests": "Fitness tests",
       "settings": "Settings"
@@ -5073,6 +5073,11 @@
       "memoryValuePlaceholder": "Trying to stop eating after 9pm on rest days",
       "addMemory": "Add memory",
       "deleteMemory": "Delete memory",
+      "memoryDetail": "View memory details",
+      "memoryDetailDescription": "Full text the nutrition coach reuses in every check-in.",
+      "memorySource": "Source",
+      "memoryCreated": "Created",
+      "memoryUpdated": "Updated",
       "status": {
         "open": "Open",
         "closed": "Closed"

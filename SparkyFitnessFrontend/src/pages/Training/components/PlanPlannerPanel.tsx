@@ -15,7 +15,7 @@ interface PlanPlannerPanelProps {
   onOpenAiChats: () => void;
 }
 
-/** Confirmed plan changes only; live planning conversations live under AI Chats. */
+/** Confirmed plan changes only; live planning conversations live under Training Coach. */
 export default function PlanPlannerPanel({
   planId,
   onOpenAiChats,
@@ -33,13 +33,13 @@ export default function PlanPlannerPanel({
         <CardDescription>
           {t(
             'training.planner.descriptionAiChats',
-            'Generate or change your calendar in the AI Chats tab. Confirmed updates are summarized below for future planning.'
+            'Generate or change your calendar in the Training Coach tab. Confirmed updates are summarized below for future planning.'
           )}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <Button type="button" onClick={onOpenAiChats}>
-          {t('training.planner.openAiChats', 'Open AI Chats')}
+          {t('training.planner.openAiChats', 'Open Training Coach')}
         </Button>
 
         <div className="space-y-3">

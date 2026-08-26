@@ -183,6 +183,48 @@ export interface MealStructureRow {
   avg_protein_g_per_logged_day: number;
 }
 
+/** SQL: effective clock time and meal slot for standalone rows and meal components. */
+const FOOD_ENTRY_TIMING_JOINS = `
+  FROM food_entries fe
+  LEFT JOIN food_entry_meals fem ON fe.food_entry_meal_id = fem.id
+  LEFT JOIN meal_types mt ON mt.id = COALESCE(fe.meal_type_id, fem.meal_type_id)
+`;
+
+const EFFECTIVE_ENTRY_TIME_SQL = 'COALESCE(fe.entry_time, fem.entry_time)';
+
+/** Maps clock hour or meal slot name to coarse day-part buckets. */
+const TIMING_BUCKET_CASE_SQL = `
+  CASE
+    WHEN ${EFFECTIVE_ENTRY_TIME_SQL} IS NOT NULL THEN
+      CASE
+        WHEN EXTRACT(HOUR FROM ${EFFECTIVE_ENTRY_TIME_SQL}) < 11 THEN 'morning'
+        WHEN EXTRACT(HOUR FROM ${EFFECTIVE_ENTRY_TIME_SQL}) < 16 THEN 'afternoon'
+        WHEN EXTRACT(HOUR FROM ${EFFECTIVE_ENTRY_TIME_SQL}) < 21 THEN 'evening'
+        ELSE 'late_night'
+      END
+    WHEN mt.name IS NOT NULL THEN
+      CASE
+        WHEN LOWER(TRIM(mt.name)) IN ('breakfast', 'brunch') THEN 'morning'
+        WHEN LOWER(TRIM(mt.name)) = 'lunch' THEN 'afternoon'
+        WHEN LOWER(TRIM(mt.name)) IN ('dinner', 'supper') THEN 'evening'
+        WHEN LOWER(TRIM(mt.name)) LIKE '%snack%' THEN 'afternoon'
+        WHEN LOWER(TRIM(mt.name)) LIKE '%dessert%' THEN 'evening'
+        ELSE 'afternoon'
+      END
+    ELSE 'unknown'
+  END
+`;
+
+const ENTRY_KCAL_SQL =
+  'COALESCE(fe.calories, 0) * fe.quantity / NULLIF(fe.serving_size, 0)';
+
+export interface TimingCoverageRow {
+  entry_count: number;
+  calorie_share_with_clock_time_pct: number;
+  calorie_share_inferred_from_meal_slot_pct: number;
+  calorie_share_untagged_pct: number;
+}
+
 export interface TimeBucketRow {
   bucket: string;
   calorie_share_pct: number;
@@ -537,9 +579,9 @@ async function getTopFoodsByFrequency(
               ) AS avg_calories_per_log
        FROM food_entries fe
        LEFT JOIN foods f ON f.id = fe.food_id
+       LEFT JOIN food_entry_meals fem ON fe.food_entry_meal_id = fem.id
        WHERE fe.user_id = $1
          AND fe.entry_date BETWEEN $2::date AND $3::date
-         AND fe.food_entry_meal_id IS NULL
        GROUP BY f.id, f.name
        HAVING COUNT(*) >= 2
        ORDER BY log_count DESC
@@ -571,13 +613,13 @@ async function getMealStructureAggregates(
       `WITH daily_meal AS (
          SELECT fe.entry_date,
                 COALESCE(mt.name, 'Unknown') AS meal_type,
-                SUM(COALESCE(fe.calories, 0) * fe.quantity / NULLIF(fe.serving_size, 0)) AS meal_calories,
+                SUM(${ENTRY_KCAL_SQL}) AS meal_calories,
                 SUM(COALESCE(fe.protein, 0) * fe.quantity / NULLIF(fe.serving_size, 0)) AS meal_protein
          FROM food_entries fe
-         LEFT JOIN meal_types mt ON mt.id = fe.meal_type_id
+         LEFT JOIN food_entry_meals fem ON fe.food_entry_meal_id = fem.id
+         LEFT JOIN meal_types mt ON mt.id = COALESCE(fe.meal_type_id, fem.meal_type_id)
          WHERE fe.user_id = $1
            AND fe.entry_date BETWEEN $2::date AND $3::date
-           AND fe.food_entry_meal_id IS NULL
          GROUP BY fe.entry_date, mt.name
        )
        SELECT meal_type,
@@ -612,18 +654,11 @@ async function getEntryTimeBucketShares(
       calorie_share_pct: string | number;
     }>(
       `WITH entry_calories AS (
-         SELECT CASE
-                  WHEN fe.entry_time IS NULL THEN 'unknown'
-                  WHEN EXTRACT(HOUR FROM fe.entry_time) < 11 THEN 'morning'
-                  WHEN EXTRACT(HOUR FROM fe.entry_time) < 16 THEN 'afternoon'
-                  WHEN EXTRACT(HOUR FROM fe.entry_time) < 21 THEN 'evening'
-                  ELSE 'late_night'
-                END AS bucket,
-                COALESCE(fe.calories, 0) * fe.quantity / NULLIF(fe.serving_size, 0) AS kcal
-         FROM food_entries fe
+         SELECT ${TIMING_BUCKET_CASE_SQL} AS bucket,
+                ${ENTRY_KCAL_SQL} AS kcal
+         ${FOOD_ENTRY_TIMING_JOINS}
          WHERE fe.user_id = $1
            AND fe.entry_date BETWEEN $2::date AND $3::date
-           AND fe.food_entry_meal_id IS NULL
        ),
        totals AS (
          SELECT bucket, SUM(kcal) AS bucket_kcal FROM entry_calories GROUP BY bucket
@@ -644,6 +679,57 @@ async function getEntryTimeBucketShares(
       bucket: row.bucket,
       calorie_share_pct: round(Number(row.calorie_share_pct)),
     }));
+  } finally {
+    client.release();
+  }
+}
+
+async function getTimingCoverage(
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<TimingCoverageRow> {
+  const client = await connect(userId);
+  try {
+    const result = await client.query<{
+      entry_count: string;
+      kcal_clock: string | number;
+      kcal_meal_slot: string | number;
+      kcal_untagged: string | number;
+      kcal_total: string | number;
+    }>(
+      `WITH rows AS (
+         SELECT
+           COUNT(*)::int AS entry_count,
+           SUM(${ENTRY_KCAL_SQL}) FILTER (
+             WHERE ${EFFECTIVE_ENTRY_TIME_SQL} IS NOT NULL
+           ) AS kcal_clock,
+           SUM(${ENTRY_KCAL_SQL}) FILTER (
+             WHERE ${EFFECTIVE_ENTRY_TIME_SQL} IS NULL AND mt.name IS NOT NULL
+           ) AS kcal_meal_slot,
+           SUM(${ENTRY_KCAL_SQL}) FILTER (
+             WHERE ${EFFECTIVE_ENTRY_TIME_SQL} IS NULL AND mt.name IS NULL
+           ) AS kcal_untagged,
+           SUM(${ENTRY_KCAL_SQL}) AS kcal_total
+         ${FOOD_ENTRY_TIMING_JOINS}
+         WHERE fe.user_id = $1
+           AND fe.entry_date BETWEEN $2::date AND $3::date
+       )
+       SELECT entry_count, kcal_clock, kcal_meal_slot, kcal_untagged, kcal_total FROM rows`,
+      [userId, startDate, endDate]
+    );
+    const row = result.rows[0];
+    const total = Number(row?.kcal_total ?? 0);
+    const pct = (part: number) =>
+      total > 0 ? round((part / total) * 100) : 0;
+    return {
+      entry_count: Number(row?.entry_count ?? 0),
+      calorie_share_with_clock_time_pct: pct(Number(row?.kcal_clock ?? 0)),
+      calorie_share_inferred_from_meal_slot_pct: pct(
+        Number(row?.kcal_meal_slot ?? 0)
+      ),
+      calorie_share_untagged_pct: pct(Number(row?.kcal_untagged ?? 0)),
+    };
   } finally {
     client.release();
   }
@@ -674,4 +760,5 @@ export default {
   getTopFoodsByFrequency,
   getMealStructureAggregates,
   getEntryTimeBucketShares,
+  getTimingCoverage,
 };

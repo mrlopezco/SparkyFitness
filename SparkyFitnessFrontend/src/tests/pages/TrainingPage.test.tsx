@@ -238,7 +238,7 @@ describe('TrainingPage', () => {
     });
 
     render(<TrainingPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'AI Chats' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Training Coach' }));
     fireEvent.click(
       screen.getByRole('button', { name: 'Generate plan' })
     );
@@ -280,7 +280,7 @@ describe('TrainingPage', () => {
     render(<TrainingPage />);
 
     expect(screen.getByRole('button', { name: 'Training plan' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'AI Chats' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Training Coach' })).toBeTruthy();
     expect(
       screen.getByRole('button', { name: 'Nutrition coach' })
     ).toBeTruthy();

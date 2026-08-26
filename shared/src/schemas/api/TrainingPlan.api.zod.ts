@@ -351,6 +351,38 @@ export const trainingAthleteSnapshotPayloadSchema = z.object({
       avg_carbs_g: z.number().nonnegative(),
       avg_fat_g: z.number().nonnegative(),
       protein_g_per_kg: z.number().nullable().optional(),
+      /** Meal-slot breakdown and timing (shared with nutrition coach analytics). */
+      meal_structure: z
+        .array(
+          z.object({
+            meal_type: z.string(),
+            avg_calories_per_logged_day: z.number().nonnegative(),
+            avg_protein_g_per_logged_day: z.number().nonnegative(),
+          }),
+        )
+        .optional(),
+      entry_time_buckets: z
+        .array(
+          z.object({
+            bucket: z.enum([
+              "morning",
+              "afternoon",
+              "evening",
+              "late_night",
+              "unknown",
+            ]),
+            calorie_share_pct: z.number().nonnegative(),
+          }),
+        )
+        .optional(),
+      timing_coverage: z
+        .object({
+          entry_count: z.number().int().nonnegative(),
+          calorie_share_with_clock_time_pct: z.number().nonnegative(),
+          calorie_share_inferred_from_meal_slot_pct: z.number().nonnegative(),
+          calorie_share_untagged_pct: z.number().nonnegative(),
+        })
+        .optional(),
     })
     .optional(),
 });

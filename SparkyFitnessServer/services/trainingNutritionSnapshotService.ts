@@ -1,6 +1,8 @@
+import type { NutritionCoachContextPayload } from '@workspace/shared';
+import nutritionCoachRepository from '../models/nutritionCoachRepository.js';
+import foodMisc from '../models/foodMisc.js';
 import { addDays } from '@workspace/shared';
 import type { TrainingAthleteSnapshotPayload } from '@workspace/shared';
-import foodMisc from '../models/foodMisc.js';
 
 export interface NutritionSnapshotInputs {
   userId: string;
@@ -75,4 +77,88 @@ export async function buildNutritionSnapshotBlock(
   };
 }
 
-export default { buildNutritionSnapshotBlock };
+export interface NutritionDiaryAnalytics {
+  meal_structure: NonNullable<
+    NutritionCoachContextPayload['meal_structure']
+  >;
+  entry_time_buckets: NonNullable<
+    NutritionCoachContextPayload['entry_time_buckets']
+  >;
+  timing_coverage: NutritionCoachContextPayload['timing_coverage'];
+}
+
+/** Meal slots, day-part buckets, and timing coverage for a date window. */
+export async function buildNutritionDiaryAnalytics(
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<NutritionDiaryAnalytics> {
+  const [meal_structure, entry_time_buckets, timingRow] = await Promise.all([
+    nutritionCoachRepository.getMealStructureAggregates(
+      userId,
+      startDate,
+      endDate
+    ),
+    nutritionCoachRepository.getEntryTimeBucketShares(
+      userId,
+      startDate,
+      endDate
+    ),
+    nutritionCoachRepository.getTimingCoverage(userId, startDate, endDate),
+  ]);
+
+  return {
+    meal_structure,
+    entry_time_buckets: entry_time_buckets.map((row) => ({
+      bucket: row.bucket as NutritionDiaryAnalytics['entry_time_buckets'][number]['bucket'],
+      calorie_share_pct: row.calorie_share_pct,
+    })),
+    timing_coverage: {
+      entry_count_90d: timingRow.entry_count,
+      calorie_share_with_clock_time_pct:
+        timingRow.calorie_share_with_clock_time_pct,
+      calorie_share_inferred_from_meal_slot_pct:
+        timingRow.calorie_share_inferred_from_meal_slot_pct,
+      calorie_share_untagged_pct: timingRow.calorie_share_untagged_pct,
+    },
+  };
+}
+
+/**
+ * Macro rollup plus meal/timing analytics for athlete snapshot and nutrition coach.
+ */
+export async function buildAthleteNutritionBlock(
+  inputs: NutritionSnapshotInputs
+): Promise<
+  NonNullable<TrainingAthleteSnapshotPayload['nutrition']> | undefined
+> {
+  const base = await buildNutritionSnapshotBlock(inputs);
+  if (!base) return undefined;
+
+  const analytics = await buildNutritionDiaryAnalytics(
+    inputs.userId,
+    inputs.startDate,
+    inputs.endDate
+  );
+
+  return {
+    ...base,
+    meal_structure: analytics.meal_structure,
+    entry_time_buckets: analytics.entry_time_buckets,
+    timing_coverage: {
+      entry_count: analytics.timing_coverage.entry_count_90d,
+      calorie_share_with_clock_time_pct:
+        analytics.timing_coverage.calorie_share_with_clock_time_pct,
+      calorie_share_inferred_from_meal_slot_pct:
+        analytics.timing_coverage.calorie_share_inferred_from_meal_slot_pct,
+      calorie_share_untagged_pct:
+        analytics.timing_coverage.calorie_share_untagged_pct,
+    },
+  };
+}
+
+export default {
+  buildNutritionSnapshotBlock,
+  buildNutritionDiaryAnalytics,
+  buildAthleteNutritionBlock,
+};

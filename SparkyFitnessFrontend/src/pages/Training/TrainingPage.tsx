@@ -47,7 +47,7 @@ const TRAINING_TABS = [
   {
     id: 'coach',
     labelKey: 'training.tabs.coachChats',
-    labelDefault: 'AI Chats',
+    labelDefault: 'Training Coach',
     icon: MessageSquare,
   },
   {

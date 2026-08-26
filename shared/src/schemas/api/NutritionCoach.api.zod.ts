@@ -53,6 +53,14 @@ export const nutritionCoachTimeBucketRowSchema = z.object({
   calorie_share_pct: z.number().nonnegative(),
 });
 
+/** How diary rows supply timing (clock vs meal slot vs neither). */
+export const nutritionCoachTimingCoverageSchema = z.object({
+  entry_count_90d: z.number().int().nonnegative(),
+  calorie_share_with_clock_time_pct: z.number().nonnegative(),
+  calorie_share_inferred_from_meal_slot_pct: z.number().nonnegative(),
+  calorie_share_untagged_pct: z.number().nonnegative(),
+});
+
 export const nutritionCoachTopFoodSchema = z.object({
   name: z.string(),
   log_count: z.number().int().nonnegative(),
@@ -137,6 +145,7 @@ export const nutritionCoachContextPayloadSchema = z.object({
   recent_weekly: z.array(nutritionCoachWeeklyRollupSchema),
   meal_structure: z.array(nutritionCoachMealStructureRowSchema),
   entry_time_buckets: z.array(nutritionCoachTimeBucketRowSchema),
+  timing_coverage: nutritionCoachTimingCoverageSchema,
   top_foods: z.array(nutritionCoachTopFoodSchema),
   activity_42d: nutritionCoachActivitySummarySchema,
   activity_90d: nutritionCoachActivitySummarySchema,

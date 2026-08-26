@@ -16,7 +16,7 @@ import trainingPlanRepository, {
   type WeightSample,
 } from '../models/trainingPlanRepository.js';
 import trainingFitnessTestRepository from '../models/trainingFitnessTestRepository.js';
-import { buildNutritionSnapshotBlock } from './trainingNutritionSnapshotService.js';
+import { buildAthleteNutritionBlock } from './trainingNutritionSnapshotService.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import {
   derivePacesFromRacePredictions,
@@ -382,7 +382,7 @@ export async function rebuildSnapshot(
       result_summary: summarizeTestResult(test.result),
     })),
     nutrition:
-      (await buildNutritionSnapshotBlock({
+      (await buildAthleteNutritionBlock({
         userId,
         startDate,
         endDate: asOfDate,

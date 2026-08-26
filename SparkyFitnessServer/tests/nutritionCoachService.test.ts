@@ -39,6 +39,12 @@ const samplePayload: NutritionCoachContextPayload = {
     training_day_avg_protein_g: 100,
     rest_day_avg_protein_g: 80,
   },
+  timing_coverage: {
+    entry_count_90d: 40,
+    calorie_share_with_clock_time_pct: 5,
+    calorie_share_inferred_from_meal_slot_pct: 90,
+    calorie_share_untagged_pct: 5,
+  },
 };
 
 describe('nutritionCoachContextService', () => {
