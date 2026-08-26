@@ -2357,7 +2357,25 @@
       "maximize": "Maximize",
       "restore": "Restore",
       "hide": "Hide",
-      "layoutErrorNotice": "The customizable layout hit an error, so a simple view is shown. Your saved layout is kept."
+      "layoutErrorNotice": "The customizable layout hit an error, so a simple view is shown. Your saved layout is kept.",
+      "workoutWindow": {
+        "title": "Workout window",
+        "description": "Logged activity and tomorrow's plan.",
+        "loading": "Loading workouts…",
+        "yesterday": "Yesterday",
+        "today": "Today",
+        "tomorrowPlanned": "Tomorrow (planned)",
+        "distance": "Distance",
+        "time": "Time",
+        "calories": "Calories",
+        "hrAvg": "HR avg",
+        "hrMax": "HR max",
+        "targetZone": "Target",
+        "noActivity": "No activity logged",
+        "noSessionPlanned": "No session planned",
+        "noActivePlan": "No active training plan.",
+        "trainingModuleOff": "Enable Training plan in Settings to see planned workouts."
+      }
     },
     "nutrientLabels": {
       "cal": "cal",
@@ -4910,7 +4928,9 @@
       "calendar": "Training plan",
       "coach": "Coach Chats",
       "coachChats": "Coach Chats",
-      "fitnessTests": "Fitness tests"
+      "nutritionCoach": "Nutrition coach",
+      "fitnessTests": "Fitness tests",
+      "settings": "Settings"
     },
     "plans": {
       "title": "Your plans",
@@ -5021,6 +5041,45 @@
       "role": {
         "user": "You",
         "assistant": "Coach",
+        "system": "Context"
+      }
+    },
+    "nutritionCoach": {
+      "sessionsTitle": "Check-ins",
+      "sessionsDescription": "Weekly nutrition conversations. Close a check-in to track progress next time.",
+      "loadingSessions": "Loading…",
+      "noSessions": "No check-ins yet. Start one to review how you eat vs your training.",
+      "untitled": "Nutrition check-in",
+      "newTitle": "Title (optional)",
+      "newTitlePlaceholder": "Weekly nutrition review",
+      "newSession": "New check-in",
+      "threadTitle": "Conversation",
+      "threadDescription": "Ask for honest feedback on patterns, timing, and consistency — not meal plans.",
+      "noActiveSession": "Start a check-in to talk to the nutrition coach.",
+      "loadingThread": "Loading…",
+      "emptyThread": "Describe what you want critiqued — logging gaps, late eating, fueling around long runs, etc.",
+      "message": "Message",
+      "messagePlaceholder": "e.g. I have been skipping breakfast on run days — be blunt about whether my diary supports that.",
+      "closedPlaceholder": "This check-in is closed. Start a new one to continue.",
+      "send": "Send",
+      "sending": "Thinking…",
+      "close": "Close check-in",
+      "memoriesTitle": "Nutrition coach memories",
+      "memoriesDescription": "Commitments and constraints reused in every nutrition check-in.",
+      "noMemories": "Nothing remembered yet.",
+      "memoryKey": "Label",
+      "memoryKeyPlaceholder": "no_late_snacks",
+      "memoryValue": "Detail",
+      "memoryValuePlaceholder": "Trying to stop eating after 9pm on rest days",
+      "addMemory": "Add memory",
+      "deleteMemory": "Delete memory",
+      "status": {
+        "open": "Open",
+        "closed": "Closed"
+      },
+      "role": {
+        "user": "You",
+        "assistant": "Nutrition coach",
         "system": "Context"
       }
     },

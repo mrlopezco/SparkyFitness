@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
   CalendarDays,
   MessageSquare,
+  Salad,
   Settings,
   Target,
   Timer,
@@ -27,6 +28,7 @@ import {
   useUpdateTrainingPlanMutation,
 } from '@/hooks/Training/useTrainingPlans';
 import TrainingAiChatsPanel from './components/TrainingAiChatsPanel';
+import NutritionCoachPanel from './components/NutritionCoachPanel';
 import CreatePlanCard from './components/CreatePlanCard';
 import FitnessTestsPanel from './components/FitnessTestsPanel';
 import TrainingOverviewTab from './components/TrainingOverviewTab';
@@ -47,6 +49,12 @@ const TRAINING_TABS = [
     labelKey: 'training.tabs.coachChats',
     labelDefault: 'AI Chats',
     icon: MessageSquare,
+  },
+  {
+    id: 'nutritionCoach',
+    labelKey: 'training.tabs.nutritionCoach',
+    labelDefault: 'Nutrition coach',
+    icon: Salad,
   },
   {
     id: 'fitnessTests',
@@ -264,6 +272,13 @@ export default function TrainingPage() {
             planId={selectedPlanId}
             onPlanProposal={openProposalInWorkspace}
           />
+        </TabsContent>
+
+        <TabsContent
+          value="nutritionCoach"
+          className="focus-visible:outline-none"
+        >
+          <NutritionCoachPanel activePlanId={activePlanSummary?.id} />
         </TabsContent>
 
         <TabsContent

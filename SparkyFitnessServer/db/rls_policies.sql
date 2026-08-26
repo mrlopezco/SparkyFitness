@@ -122,6 +122,11 @@ BEGIN
     'training_coach_memories',
     'training_fitness_tests',
     'training_coaching_signals',
+    'nutrition_coach_sessions',
+    'nutrition_coach_messages',
+    'nutrition_coach_session_summaries',
+    'nutrition_coach_memories',
+    'nutrition_coach_context_snapshots',
     'training_plan_planner_sessions',
     'ghd_sync_runs',
     'ghd_activity_map',
@@ -920,6 +925,9 @@ SELECT create_diary_policy('training_coach_sessions');
 SELECT create_diary_policy('training_coach_memories');
 SELECT create_diary_policy('training_fitness_tests');
 SELECT create_diary_policy('training_coaching_signals');
+SELECT create_diary_policy('nutrition_coach_sessions');
+SELECT create_diary_policy('nutrition_coach_memories');
+SELECT create_diary_policy('nutrition_coach_context_snapshots');
 
 DROP POLICY IF EXISTS select_policy ON public.training_session_completions;
 DROP POLICY IF EXISTS modify_policy ON public.training_session_completions;
@@ -1002,6 +1010,47 @@ WITH CHECK (EXISTS (
   WHERE tcs.id = training_coach_session_summaries.session_id
     AND has_diary_access(tcs.user_id)
 ));
+
+DROP POLICY IF EXISTS select_policy ON public.nutrition_coach_messages;
+DROP POLICY IF EXISTS modify_policy ON public.nutrition_coach_messages;
+CREATE POLICY select_policy ON public.nutrition_coach_messages FOR SELECT TO PUBLIC
+USING (EXISTS (
+  SELECT 1 FROM public.nutrition_coach_sessions ncs
+  WHERE ncs.id = nutrition_coach_messages.session_id
+    AND has_diary_read_access(ncs.user_id)
+));
+CREATE POLICY modify_policy ON public.nutrition_coach_messages FOR ALL TO PUBLIC
+USING (EXISTS (
+  SELECT 1 FROM public.nutrition_coach_sessions ncs
+  WHERE ncs.id = nutrition_coach_messages.session_id
+    AND has_diary_access(ncs.user_id)
+))
+WITH CHECK (EXISTS (
+  SELECT 1 FROM public.nutrition_coach_sessions ncs
+  WHERE ncs.id = nutrition_coach_messages.session_id
+    AND has_diary_access(ncs.user_id)
+));
+
+DROP POLICY IF EXISTS select_policy ON public.nutrition_coach_session_summaries;
+DROP POLICY IF EXISTS modify_policy ON public.nutrition_coach_session_summaries;
+CREATE POLICY select_policy ON public.nutrition_coach_session_summaries FOR SELECT TO PUBLIC
+USING (EXISTS (
+  SELECT 1 FROM public.nutrition_coach_sessions ncs
+  WHERE ncs.id = nutrition_coach_session_summaries.session_id
+    AND has_diary_read_access(ncs.user_id)
+));
+CREATE POLICY modify_policy ON public.nutrition_coach_session_summaries FOR ALL TO PUBLIC
+USING (EXISTS (
+  SELECT 1 FROM public.nutrition_coach_sessions ncs
+  WHERE ncs.id = nutrition_coach_session_summaries.session_id
+    AND has_diary_access(ncs.user_id)
+))
+WITH CHECK (EXISTS (
+  SELECT 1 FROM public.nutrition_coach_sessions ncs
+  WHERE ncs.id = nutrition_coach_session_summaries.session_id
+    AND has_diary_access(ncs.user_id)
+));
+
 SELECT create_checkin_policy('sleep_need_calculations');
 SELECT create_checkin_policy('daily_sleep_need');
 -- Day classification is a sleep/wellness (check-in) feature, used only by the

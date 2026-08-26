@@ -24,4 +24,11 @@ export const trainingPlanKeys = {
     [...trainingPlanKeys.planner(), planId, 'sessions'] as const,
   plannerHistory: (planId: string) =>
     [...trainingPlanKeys.plannerSessions(planId), 'confirmed'] as const,
+  nutritionCoach: () => [...trainingPlanKeys.all, 'nutritionCoach'] as const,
+  nutritionCoachSessions: () =>
+    [...trainingPlanKeys.nutritionCoach(), 'sessions'] as const,
+  nutritionCoachSession: (sessionId: string) =>
+    [...trainingPlanKeys.nutritionCoachSessions(), sessionId] as const,
+  nutritionCoachMemories: () =>
+    [...trainingPlanKeys.nutritionCoach(), 'memories'] as const,
 };

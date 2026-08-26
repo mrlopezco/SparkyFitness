@@ -10,6 +10,7 @@ import WaterIntake from './WaterIntake';
 import WeightTrendCard from './WeightTrendCard';
 import MealCard from './MealCard';
 import ExerciseCard from './ExerciseCard';
+import WorkoutActivityWindowCard from '@/pages/Training/components/WorkoutActivityWindowCard';
 import DiaryWidgetGrid, { type DiaryWidget } from './DiaryWidgetGrid';
 import { mealWidgetKey } from '@/utils/dashboardLayout';
 import {
@@ -20,6 +21,7 @@ import {
   UtensilsCrossed,
   Dumbbell,
   HeartPulse,
+  CalendarRange,
 } from 'lucide-react';
 import { DailyHealthMetricsCard } from '@/components/Health/DailyHealthMetricsCard';
 import { useDailyHealthMetrics } from '@/hooks/useGenericHealth';
@@ -475,6 +477,13 @@ const Diary = () => {
           onExercisesLogged={() => setExercisesToLogFromPreset(undefined)}
         />
       ),
+    });
+
+    list.push({
+      key: 'workoutWindow',
+      title: t('diary.widgets.workoutWindow.title', 'Workout window'),
+      icon: CalendarRange,
+      render: () => <WorkoutActivityWindowCard />,
     });
 
     return list;

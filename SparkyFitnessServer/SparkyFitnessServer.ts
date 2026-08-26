@@ -73,6 +73,7 @@ import aiUnitConversionRoutes from './routes/aiUnitConversionRoutes.js';
 import aiMealLogRoutes from './routes/aiMealLogRoutes.js';
 import trainingPlanRoutes from './routes/trainingPlanRoutes.js';
 import trainingCoachRoutes from './routes/trainingCoachRoutes.js';
+import nutritionCoachRoutes from './routes/nutritionCoachRoutes.js';
 import trainingCheckInService from './services/trainingCheckInService.js';
 import allergenPreferenceRoutes from './routes/allergenPreferenceRoutes.js';
 import { applyMigrations } from './utils/dbMigrations.js';
@@ -499,6 +500,7 @@ app.use('/api/ai', aiMealLogRoutes);
 // `/ai/adjust` paths would otherwise be captured by trainingPlanRoutes' `/:id`.
 app.use('/api/training-plans', trainingCoachRoutes);
 app.use('/api/training-plans', trainingPlanRoutes);
+app.use('/api/nutrition-coach', nutritionCoachRoutes);
 app.use('/api/foods', foodRoutes);
 app.use('/api/favorites', favoritesRoutes);
 app.use('/api/v2/foods', v2FoodRoutes);

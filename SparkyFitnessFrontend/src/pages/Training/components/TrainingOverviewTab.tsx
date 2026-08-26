@@ -4,6 +4,7 @@ import type {
 } from '@workspace/shared';
 import ActivePlanDetailsCard from './ActivePlanDetailsCard';
 import UpcomingWeekPanel from './UpcomingWeekPanel';
+import WorkoutActivityWindowCard from './WorkoutActivityWindowCard';
 import {
   useCreateAthleteSnapshotMutation,
   useTrainingPlanFeasibility,
@@ -57,6 +58,11 @@ export default function TrainingOverviewTab({
           });
         }}
         onOpenPlanTab={() => onOpenPlanTab()}
+      />
+
+      <WorkoutActivityWindowCard
+        planId={activePlanId}
+        onOpenPlanTab={onOpenPlanTab}
       />
 
       <UpcomingWeekPanel

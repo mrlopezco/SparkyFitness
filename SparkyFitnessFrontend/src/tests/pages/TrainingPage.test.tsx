@@ -173,6 +173,17 @@ jest.mock('@/hooks/Training/useTrainingCoach', () => ({
   useDeleteCoachMemoryMutation: () => mockIdleMutation(),
 }));
 
+jest.mock('@/hooks/Training/useNutritionCoach', () => ({
+  useNutritionCoachSessions: () => ({ data: [], isLoading: false }),
+  useNutritionCoachSession: () => ({ data: undefined, isLoading: false }),
+  useNutritionCoachMemories: () => ({ data: [], isLoading: false }),
+  useCreateNutritionCoachSessionMutation: () => mockIdleMutation(),
+  useSendNutritionCoachMessageMutation: () => mockIdleMutation(),
+  useCloseNutritionCoachSessionMutation: () => mockIdleMutation(),
+  useUpsertNutritionCoachMemoryMutation: () => mockIdleMutation(),
+  useDeleteNutritionCoachMemoryMutation: () => mockIdleMutation(),
+}));
+
 describe('TrainingPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -270,6 +281,9 @@ describe('TrainingPage', () => {
 
     expect(screen.getByRole('button', { name: 'Training plan' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'AI Chats' })).toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: 'Nutrition coach' })
+    ).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Fitness tests' })).toBeTruthy();
   });
 });
